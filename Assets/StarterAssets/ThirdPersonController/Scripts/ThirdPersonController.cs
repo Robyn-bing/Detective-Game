@@ -115,6 +115,23 @@ namespace StarterAssets
         private const float _threshold = 0.01f;
 
         private bool _hasAnimator;
+        private bool _firstPersonMovement;
+
+        // The view component owns first-person look; this controller still owns all movement and gravity.
+        public void SetFirstPersonMovement(bool enabled)
+        {
+            _firstPersonMovement = enabled;
+            _targetRotation = transform.eulerAngles.y;
+            _rotationVelocity = 0f;
+        }
+
+        public void SetThirdPersonLook(float yaw, float pitch)
+        {
+            _cinemachineTargetYaw = yaw;
+            _cinemachineTargetPitch = Mathf.Clamp(pitch - CameraAngleOverride, BottomClamp, TopClamp);
+            CinemachineCameraTarget.transform.rotation = Quaternion.Euler(
+                _cinemachineTargetPitch + CameraAngleOverride, _cinemachineTargetYaw, 0f);
+        }
 
         private bool IsCurrentDeviceMouse
         {
@@ -198,6 +215,8 @@ namespace StarterAssets
 
         private void CameraRotation()
         {
+            if (_firstPersonMovement) return;
+
             // if there is an input and camera position is not fixed
             if (_input.look.sqrMagnitude >= _threshold && !LockCameraPosition)
             {
@@ -259,7 +278,7 @@ namespace StarterAssets
 
             // note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
             // if there is a move input rotate player when the player is moving
-            if (_input.move != Vector2.zero)
+            if (_input.move != Vector2.zero && !_firstPersonMovement)
             {
                 _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg +
                                   _mainCamera.transform.eulerAngles.y;
@@ -272,6 +291,12 @@ namespace StarterAssets
 
 
             Vector3 targetDirection = Quaternion.Euler(0.0f, _targetRotation, 0.0f) * Vector3.forward;
+
+            if (_firstPersonMovement)
+            {
+                // Backwards and sideways input must not turn the body away from the view.
+                targetDirection = transform.TransformDirection(inputDirection);
+            }
 
             // move the player
             _controller.Move(targetDirection.normalized * (_speed * Time.deltaTime) +
