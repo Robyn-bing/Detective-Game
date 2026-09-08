@@ -1,0 +1,90 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6165263446a9ae94da498c5225513bc4, type: 3}
+  m_Name: Desk_Book_RecallData
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Recall.RecallObjectData
+  displayName: "\u4E66\u684C\u4E0A\u7684\u4E66\u672C"
+  description: "\u6F14\u793A\u56DE\u6EAF\uFF1A\u4E66\u672C\u5728 18:55 \u81F3 19:05
+    \u4E4B\u95F4\u5DE6\u53F3\u79FB\u52A8\u3002"
+  previewPrefab: {fileID: 2321406169299206546, guid: d77dd10ecb0c1774e9516f0b3ab5adc3, type: 3}
+  previewCameraEuler: {x: 38, y: 0, z: 0}
+  previewFieldOfView: 48
+  framingPadding: 1.65
+  cameraEntryProgressCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  cameraReturnTransitionSeconds: 0.75
+  backgroundColor: {r: 0.055, g: 0.035, b: 0.022, a: 1}
+  periods:
+  - label: "\u4E66\u672C\u79FB\u52A8\u7684\u5341\u5206\u949F"
+    startHour: 18
+    startMinute: 55
+    endHour: 19
+    endMinute: 5
+    animationClip: {fileID: 7400000, guid: 2143fcbb40bd2c5469383b9bb6b782eb, type: 2}
+    synchronizedEntrySeconds: 1.35
+    rewindProgressCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 2.2
+        outSlope: 2.2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.30833435
+        value: 0.48413086
+        inSlope: 0.25
+        outSlope: 0.25
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.56111145
+        value: 0.99682236
+        inSlope: 2.2
+        outSlope: 2.2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    playbackSpeed: 1
+    available: 1

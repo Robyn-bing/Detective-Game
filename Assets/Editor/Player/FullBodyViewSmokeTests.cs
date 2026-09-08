@@ -70,7 +70,7 @@ namespace DetectiveGame.EditorTools
                 yield return new WaitForSeconds(0.5f);
                 Check(view.IsFirstPerson && brain.ActiveVirtualCamera.Name == "PlayerFirstPersonCamera", "First-person camera is active");
                 Check(Mathf.Abs(camera.fieldOfView - 75f) < 0.1f && camera.nearClipPlane < 0.05f, "First-person lens is applied");
-                Check(UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None).Length == 1, "Only one real rendering camera");
+                Check(UnityEngine.Object.FindObjectsByType<Camera>().Length == 1, "Only one real rendering camera");
                 var body = renderer.transform.GetChild(0).GetComponent<SkinnedMeshRenderer>();
                 Check(body != null && body.enabled && renderer.shadowCastingMode == ShadowCastingMode.ShadowsOnly,
                     "Headless body is visible; complete original still casts shadows");
