@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 13a99a6139b54db4ba0ad8523818c3d6, type: 3}
+  m_Name: PrototypeInvestigationDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Investigation.InvestigationDatabase
+  characters:
+  - id: character.edward_hartley
+    displayName: "埃德华·哈特利"
+    role: "死者"
+    portrait: {fileID: 0}
+  - id: character.margaret_hartley
+    displayName: "玛格丽特·哈特利"
+    role: "妻子"
+    portrait: {fileID: 0}
+  - id: character.james_whitmore
+    displayName: "詹姆斯·惠特摩"
+    role: "合伙人"
+    portrait: {fileID: 0}
+  - id: character.peter_collins
+    displayName: "彼德·柯林斯"
+    role: "秘书"
+    portrait: {fileID: 0}
+  - id: character.clara_remington
+    displayName: "克莱拉·雷明顿"
+    role: "侦探"
+    portrait: {fileID: 0}
+  relationships:
+  - id: relationship.edward_margaret.spouse
+    fromCharacterId: character.edward_hartley
+    toCharacterId: character.margaret_hartley
+    displayName: "夫妻"
+  - id: relationship.edward_james.partner
+    fromCharacterId: character.edward_hartley
+    toCharacterId: character.james_whitmore
+    displayName: "合伙人"
+  - id: relationship.edward_peter.superior
+    fromCharacterId: character.edward_hartley
+    toCharacterId: character.peter_collins
+    displayName: "上下级"
+  testimonies:
+  - id: testimony.margaret.relationship.good
+    characterId: character.margaret_hartley
+    category: 0
+    displayText: "夫妻关系一直很好"
+  - id: testimony.margaret.relationship.friction
+    characterId: character.margaret_hartley
+    category: 0
+    displayText: "最近死者脾气急躁，产生小摩擦"
+  - id: testimony.margaret.action.arrive_study_1900
+    characterId: character.margaret_hartley
+    category: 1
+    displayText: "9.8 19:00 来到书房"
+  - id: testimony.margaret.action.deliver_dinner
+    characterId: character.margaret_hartley
+    category: 1
+    displayText: "给死者送饭"
+  - id: testimony.margaret.action.leave_study_1915
+    characterId: character.margaret_hartley
+    category: 1
+    displayText: "9.8 19:15 离开书房"
+  - id: testimony.margaret.action.find_body_0800
+    characterId: character.margaret_hartley
+    category: 1
+    displayText: "9.9 8:00 来到书房并发现死者"
+  timePeriods:
+  - id: time_period.study_1900_1915
+    label: "书房 19:00–19:15"
+    startTime: "19:00"
+    endTime: "19:15"
+  initialKnownCharacterIds:
+  - character.edward_hartley
+  - character.clara_remington

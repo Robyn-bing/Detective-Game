@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DetectiveGame.Dialogue;
 using DetectiveGame.Recall;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -52,7 +53,8 @@ namespace DetectiveGame.Interaction
 
         private void Update()
         {
-            if (viewCamera == null || (recallSession != null && recallSession.IsActive))
+            if (viewCamera == null || DialogueController.AnyModalOpen ||
+                (recallSession != null && recallSession.IsActive))
             {
                 SetFocus(null);
                 return;
@@ -115,6 +117,7 @@ namespace DetectiveGame.Interaction
         private void OnInteract(InputAction.CallbackContext context)
         {
             if (focusedTarget == null || !focusedTarget.IsInteractionAvailable) return;
+            if (DialogueController.AnyModalOpen) return;
             if (recallSession != null && recallSession.IsActive) return;
             focusedTarget.Interact(transform);
             SetFocus(null);

@@ -47,10 +47,10 @@ MonoBehaviour:
   backgroundColor: {r: 0.055, g: 0.035, b: 0.022, a: 1}
   periods:
   - label: "\u4E66\u672C\u79FB\u52A8\u7684\u5341\u5206\u949F"
-    startHour: 18
-    startMinute: 55
+    startHour: 19
+    startMinute: 0
     endHour: 19
-    endMinute: 5
+    endMinute: 15
     animationClip: {fileID: 7400000, guid: 2143fcbb40bd2c5469383b9bb6b782eb, type: 2}
     synchronizedEntrySeconds: 1.35
     rewindProgressCurve:
@@ -88,3 +88,4 @@ MonoBehaviour:
       m_RotationOrder: 4
     playbackSpeed: 1
     available: 1
+    unlockId:

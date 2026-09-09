@@ -194,7 +194,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -695,7 +695,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -1003,7 +1003,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -1334,7 +1334,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -2532,7 +2532,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -3033,7 +3033,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -3557,7 +3557,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -4081,7 +4081,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8233d90336aea43098adf6dbabd606a2, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.ProBuilder::UnityEngine.ProBuilder.ProBuilderMesh
   m_MeshFormatVersion: 2
   m_Faces:
@@ -15151,6 +15151,7 @@ GameObject:
   - component: {fileID: 881112175}
   - component: {fileID: 881112174}
   - component: {fileID: 881112173}
+  - component: {fileID: 1999000013}
   m_Layer: 0
   m_Name: Capsule
   m_TagString: Untagged
@@ -18865,6 +18866,9 @@ GameObject:
   - component: {fileID: 1112245015}
   - component: {fileID: 1112245014}
   - component: {fileID: 1112245013}
+  - component: {fileID: 1999000010}
+  - component: {fileID: 1999000011}
+  - component: {fileID: 1999000012}
   m_Layer: 0
   m_Name: RecallSystem
   m_TagString: Untagged
@@ -41203,6 +41207,64 @@ MonoBehaviour:
   visibilityLayers:
     serializedVersion: 2
     m_Bits: 4294967291
+--- !u!114 &1999000010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1112245012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa342f3f26fe414899be386a77a2fb97, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Investigation.InvestigationKnowledgeService
+--- !u!114 &1999000011
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1112245012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab21d7e5aaf64ef1902e47513244f5b3, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Dialogue.DialogueRuntimeUI
+--- !u!114 &1999000012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1112245012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba3194afc52f4c9db3f8298f3da34d35, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Dialogue.DialogueController
+  investigationDatabase: {fileID: 11400000, guid: fe823fa4314d435ba55df50dc721cf93, type: 2}
+  playerInput: {fileID: 1068126285}
+  starterInputs: {fileID: 1068126284}
+  recallSession: {fileID: 1112245013}
+--- !u!114 &1999000013
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 881112172}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 839e96d391424427b6247058b7290e14, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Dialogue.DialogueInteractable
+  interactionAnchor: {fileID: 881112176}
+  interactionDistance: 2.2
+  promptScreenOffset: {x: 55, y: 70}
+  conversation: {fileID: 6231892579173505729, guid: 57e0f40e6f854c67b6ea67cbed98d307, type: 3}
+  dialogueController: {fileID: 1999000012}
+  promptText: "[E] \u5BF9\u8BDD"
 --- !u!1 &2020569349
 GameObject:
   m_ObjectHideFlags: 0

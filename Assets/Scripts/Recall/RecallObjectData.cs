@@ -1,4 +1,5 @@
 using System;
+using DetectiveGame.Investigation;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -23,13 +24,17 @@ namespace DetectiveGame.Recall
             new Keyframe(1f, 1f, 2.2f, 2.2f));
         [SerializeField, Min(0.01f)] private float playbackSpeed = 1f;
         [SerializeField] private bool available = true;
+        [SerializeField, Tooltip("Leave empty for an always-available period, or use a stable investigation time-period ID.")]
+        private string unlockId;
 
         public string Label => label;
         public AnimationClip AnimationClip => animationClip;
         public float SynchronizedEntrySeconds => synchronizedEntrySeconds;
         public AnimationCurve RewindProgressCurve => rewindProgressCurve;
         public float PlaybackSpeed => playbackSpeed;
-        public bool Available => available;
+        public bool Available => available && (string.IsNullOrWhiteSpace(unlockId) ||
+                                                InvestigationKnowledgeService.IsTimePeriodUnlockedGlobally(unlockId));
+        public string UnlockId => unlockId;
         public string StartTime => FormatMinutes(StartTotalMinutes);
         public string EndTime => FormatMinutes(EndTotalMinutes);
         private int StartTotalMinutes => startHour * 60 + startMinute;

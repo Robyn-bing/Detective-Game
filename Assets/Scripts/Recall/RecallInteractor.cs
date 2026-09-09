@@ -1,3 +1,4 @@
+using DetectiveGame.Dialogue;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -41,7 +42,8 @@ namespace DetectiveGame.Recall
 
         private void Update()
         {
-            if (recallSession == null || recallSession.IsActive || viewCamera == null)
+            if (recallSession == null || recallSession.IsActive || viewCamera == null ||
+                DialogueController.AnyModalOpen)
             {
                 SetFocus(null);
                 return;
@@ -99,7 +101,8 @@ namespace DetectiveGame.Recall
 
         private void OnRecall(InputAction.CallbackContext context)
         {
-            if (focusedTarget != null && recallSession != null && !recallSession.IsActive)
+            if (focusedTarget != null && recallSession != null && !recallSession.IsActive &&
+                !DialogueController.AnyModalOpen)
                 recallSession.BeginRecall(focusedTarget);
         }
     }

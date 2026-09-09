@@ -1,3 +1,4 @@
+using DetectiveGame.Input;
 using StarterAssets;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -15,6 +16,7 @@ namespace DetectiveGame.Recall
         [SerializeField] private PlayerInput playerInput;
         [SerializeField] private StarterAssetsInputs starterInputs;
         [SerializeField] private RecallRuntimeUI ui;
+        [SerializeField] private GameInputModeController inputModes;
 
         [Header("Preview")]
         [SerializeField] private int previewLayer = 2;
@@ -49,9 +51,6 @@ namespace DetectiveGame.Recall
         private bool[] hiddenPlayerRendererStates;
 
         private float previousTimeScale;
-        private bool previousPlayerInputEnabled;
-        private CursorLockMode previousCursorLock;
-        private bool previousCursorVisible;
         private int previousCullingMask;
         private CameraClearFlags previousClearFlags;
         private Color previousBackground;
@@ -75,6 +74,7 @@ namespace DetectiveGame.Recall
             if (mainCamera == null) mainCamera = Camera.main;
             if (mainCamera != null) brain = mainCamera.GetComponent<CinemachineBrain>();
             if (ui == null) ui = GetComponent<RecallRuntimeUI>();
+            if (inputModes == null) inputModes = GameInputModeController.GetOrCreate(playerInput, starterInputs);
             State = SessionState.Idle;
         }
 
@@ -151,9 +151,9 @@ namespace DetectiveGame.Recall
         public void BeginRecall(RecallableObject recallable)
         {
             if (IsActive || recallable == null || recallable.Data == null || recallable.Data.AvailablePeriodCount == 0) return;
+            if (!FreezeGameplay()) return;
             target = recallable;
             data = target.Data;
-            FreezeGameplay();
             ui.SetWorldPrompt(null);
             if (data.AvailablePeriodCount == 1)
                 StartPeriod(data.GetAvailablePeriodIndex(0));
@@ -224,13 +224,7 @@ namespace DetectiveGame.Recall
             RestoreCamera();
             RestorePlayerVisuals();
             Time.timeScale = previousTimeScale;
-            if (playerInput != null)
-            {
-                playerInput.enabled = previousPlayerInputEnabled;
-                if (previousPlayerInputEnabled && playerInput.isActiveAndEnabled) playerInput.ActivateInput();
-            }
-            Cursor.lockState = previousCursorLock;
-            Cursor.visible = previousCursorVisible;
+            if (inputModes != null) inputModes.Exit(this);
             if (ui != null) ui.HideRecall();
             data = null;
             target = null;
@@ -326,24 +320,13 @@ namespace DetectiveGame.Recall
                 period.AnimationClip.SampleAnimation(preview, Mathf.Clamp(clipTime, 0f, period.AnimationClip.length));
         }
 
-        private void FreezeGameplay()
+        private bool FreezeGameplay()
         {
+            if (inputModes == null || !inputModes.TryEnter(this, GameInputMode.Recall)) return false;
             previousTimeScale = Time.timeScale;
-            previousPlayerInputEnabled = playerInput != null && playerInput.enabled;
-            previousCursorLock = Cursor.lockState;
-            previousCursorVisible = Cursor.visible;
-            if (starterInputs != null)
-            {
-                starterInputs.MoveInput(Vector2.zero);
-                starterInputs.LookInput(Vector2.zero);
-                starterInputs.JumpInput(false);
-                starterInputs.SprintInput(false);
-            }
-            if (playerInput != null) playerInput.DeactivateInput();
             Time.timeScale = 0f;
-            Cursor.lockState = CursorLockMode.None;
-            Cursor.visible = true;
             SaveAndTakeOverCamera();
+            return true;
         }
 
         private void SaveAndTakeOverCamera()
