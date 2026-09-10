@@ -1,0 +1,44 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 770ef1d836091454bbf1eca34d8011a3, type: 3}
+  m_Name: Desk_Book_Evidence
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Evidence.EvidenceDefinition
+  evidenceId: evidence.desk_book
+  displayName: "\u4E66\u684C\u4E0A\u7684\u4E66"
+  icon: {fileID: 0}
+  description: "\u8FDE\u63A5\u8D70\u5ECA\u4E0E\u4E66\u623F\u7684\u95E8\u3002\u56DE\u6EAF\u5176\u5F00\u5173\u72B6\u6001\u4F3C\u4E4E\u80FD\u5F97\u5230\u4EBA\u5458\u8FDB\u51FA\u4E66\u623F\u7684\u5927\u81F4\u65F6\u95F4\u3002"
+  previewPeriodIndex: 0
+  moments:
+  - id: desk_book.1900
+    timeLabel: 19:00
+    normalizedTime: 0
+    observedFact: "\u4E66\u623F\u95E8\u5F00\u542F\u540E\u5173\u95ED"
+    choices:
+    - id: desk_book.1900.margaret_enter
+      text: "\u739B\u683C\u8389\u7279\xB7\u54C8\u7279\u5229\u8FDB\u5165\u623F\u95F4"
+    - id: desk_book.1900.edward_enter
+      text: "\u57C3\u5FB7\u534E\xB7\u54C8\u7279\u5229\u8FDB\u5165\u623F\u95F4"
+    - id: desk_book.1900.margaret_leave
+      text: "\u739B\u683C\u8389\u7279\xB7\u54C8\u7279\u5229\u79BB\u5F00\u623F\u95F4"
+    correctChoiceId: desk_book.1900.margaret_enter
+  - id: desk_book.1915
+    timeLabel: 19:15
+    normalizedTime: 1
+    observedFact: "\u4E66\u623F\u95E8\u518D\u6B21\u5F00\u542F\u540E\u5173\u95ED"
+    choices:
+    - id: desk_book.1915.margaret_enter
+      text: "\u739B\u683C\u8389\u7279\xB7\u54C8\u7279\u5229\u8FDB\u5165\u623F\u95F4"
+    - id: desk_book.1915.margaret_leave
+      text: "\u739B\u683C\u8389\u7279\xB7\u54C8\u7279\u5229\u79BB\u5F00\u623F\u95F4"
+    - id: desk_book.1915.edward_leave
+      text: "\u57C3\u5FB7\u534E\xB7\u54C8\u7279\u5229\u79BB\u5F00\u623F\u95F4"
+    correctChoiceId: desk_book.1915.margaret_leave

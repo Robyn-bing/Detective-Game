@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DetectiveGame.Evidence;
 using UnityEngine;
 
 namespace DetectiveGame.Recall
@@ -9,6 +10,7 @@ namespace DetectiveGame.Recall
         private static readonly List<RecallableObject> ActiveObjects = new List<RecallableObject>();
 
         [SerializeField] private RecallObjectData data;
+        [SerializeField] private EvidenceDefinition evidence;
         [SerializeField] private Transform interactionAnchor;
         [SerializeField, Min(0.25f)] private float interactionDistance = 1.75f;
         [SerializeField] private Vector2 promptScreenOffset = new Vector2(52f, 38f);
@@ -20,6 +22,7 @@ namespace DetectiveGame.Recall
         private bool highlighted;
 
         public RecallObjectData Data => data;
+        public EvidenceDefinition Evidence => evidence;
         public Transform InteractionAnchor => interactionAnchor != null ? interactionAnchor : transform;
         public float InteractionDistance => interactionDistance;
         public Vector2 PromptScreenOffset => promptScreenOffset;

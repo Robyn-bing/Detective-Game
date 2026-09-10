@@ -2,6 +2,7 @@ Shader "DetectiveGame/UI/InvestigationBackgroundBlur"
 {
     Properties
     {
+        [PerRendererData] _MainTex ("Sprite Texture", 2D) = "white" {}
         _BlurRadius ("Blur Radius", Range(0, 8)) = 3.5
         _Tint ("Tint", Color) = (0.12, 0.16, 0.2, 0.72)
     }
@@ -55,6 +56,11 @@ Shader "DetectiveGame/UI/InvestigationBackgroundBlur"
             half4 Frag(Varyings input) : SV_Target
             {
                 float2 uv = GetNormalizedScreenSpaceUV(input.positionCS);
+#if UNITY_UV_STARTS_AT_TOP
+                // UI fragment coordinates start at the top on Direct3D, while URP's
+                // opaque camera texture is sampled bottom-up in this pass.
+                uv.y = 1.0 - uv.y;
+#endif
                 float2 offset = _CameraOpaqueTexture_TexelSize.xy * _BlurRadius;
 
                 half3 blurred = SampleSceneColor(uv) * 0.20h;

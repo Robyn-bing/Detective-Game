@@ -99,6 +99,15 @@ namespace DetectiveGame.Input
             return true;
         }
 
+        public bool TryTransfer(Object currentOwner, Object nextOwner, GameInputMode requestedMode)
+        {
+            if (owner != currentOwner || nextOwner == null || requestedMode == GameInputMode.Gameplay)
+                return false;
+            owner = nextOwner;
+            Mode = requestedMode;
+            return true;
+        }
+
         public void Exit(Object requester)
         {
             if (owner != requester) return;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DetectiveGame.Evidence;
 using DetectiveGame.Input;
 using DetectiveGame.Investigation;
 using DetectiveGame.Recall;
@@ -14,7 +15,7 @@ namespace DetectiveGame.Dialogue
     public enum InvestigationMenuOption
     {
         TestimonyBoard,
-        Clues,
+        EvidenceBoard,
         Save,
         Hint,
         Settings
@@ -33,6 +34,7 @@ namespace DetectiveGame.Dialogue
         [SerializeField] private StarterAssetsInputs starterInputs;
         [SerializeField] private RecallSessionController recallSession;
         [SerializeField] private GameInputModeController inputModes;
+        [SerializeField] private EvidenceBoardController evidenceBoard;
 
         private readonly InputAction advanceAction = new InputAction(
             "Advance Dialogue", InputActionType.Button, "<Keyboard>/space");
@@ -53,7 +55,8 @@ namespace DetectiveGame.Dialogue
         private bool logOpen;
 
         public static DialogueController Current { get; private set; }
-        public static bool AnyModalOpen => Current != null && Current.HasOpenModal;
+        public static bool AnyModalOpen =>
+            (Current != null && Current.HasOpenModal) || EvidenceBoardController.AnyOpen;
         public bool HasOpenModal => dialogueActive || wheelOpen || boardOpen || logOpen;
         public bool CanBeginDialogue => !HasOpenModal && (recallSession == null || !recallSession.IsActive);
 
@@ -62,6 +65,7 @@ namespace DetectiveGame.Dialogue
             if (playerInput == null) playerInput = FindAnyObjectByType<PlayerInput>();
             if (starterInputs == null) starterInputs = FindAnyObjectByType<StarterAssetsInputs>();
             if (recallSession == null) recallSession = FindAnyObjectByType<RecallSessionController>();
+            if (evidenceBoard == null) evidenceBoard = FindAnyObjectByType<EvidenceBoardController>();
             if (inputModes == null) inputModes = GameInputModeController.GetOrCreate(playerInput, starterInputs);
 
             knowledge = GetComponent<InvestigationKnowledgeService>();
@@ -110,7 +114,8 @@ namespace DetectiveGame.Dialogue
         private void Update()
         {
             bool recallActive = recallSession != null && recallSession.IsActive;
-            ui.SetPersistentHudVisible(!recallActive && !wheelOpen && !boardOpen && !logOpen);
+            ui.SetPersistentHudVisible(
+                !recallActive && !wheelOpen && !boardOpen && !logOpen && !EvidenceBoardController.AnyOpen);
 
             if (!dialogueActive || !choicesVisible || boardOpen || logOpen || Keyboard.current == null) return;
             if (Keyboard.current.digit1Key.wasPressedThisFrame) SelectChoice(0);
@@ -154,7 +159,8 @@ namespace DetectiveGame.Dialogue
 
         public void AdvanceStory()
         {
-            if (!dialogueActive || choicesVisible || boardOpen || logOpen || story == null) return;
+            if (!dialogueActive || choicesVisible || wheelOpen || boardOpen || logOpen ||
+                EvidenceBoardController.AnyOpen || story == null) return;
 
             while (story.canContinue)
             {
@@ -183,7 +189,8 @@ namespace DetectiveGame.Dialogue
 
         public void SelectChoice(int displayedIndex)
         {
-            if (!dialogueActive || !choicesVisible || story == null || boardOpen || logOpen) return;
+            if (!dialogueActive || !choicesVisible || story == null || wheelOpen || boardOpen || logOpen ||
+                EvidenceBoardController.AnyOpen) return;
             if (displayedIndex < 0 || displayedIndex >= story.currentChoices.Count) return;
 
             int inkChoiceIndex = story.currentChoices[displayedIndex].index;
@@ -207,7 +214,7 @@ namespace DetectiveGame.Dialogue
                 return;
             }
 
-            if (boardOpen && !dialogueActive)
+            if (boardOpen)
             {
                 CloseBoard();
                 return;
@@ -218,8 +225,13 @@ namespace DetectiveGame.Dialogue
 
         public void OpenInvestigationWheel()
         {
-            if (HasOpenModal || (recallSession != null && recallSession.IsActive)) return;
-            if (!FreezeGameplay(GameInputMode.InvestigationWheel)) return;
+            if (wheelOpen || boardOpen || logOpen || EvidenceBoardController.AnyOpen ||
+                (recallSession != null && recallSession.IsActive)) return;
+            if (dialogueActive)
+            {
+                if (inputModes == null || !inputModes.TrySetMode(this, GameInputMode.InvestigationWheel)) return;
+            }
+            else if (!FreezeGameplay(GameInputMode.InvestigationWheel)) return;
             wheelOpen = true;
             ui.ShowInvestigationWheel();
         }
@@ -228,9 +240,16 @@ namespace DetectiveGame.Dialogue
         {
             if (!wheelOpen) return;
             wheelOpen = false;
-            ui.HideInvestigationWheel();
-            ui.SetPersistentHudVisible(true);
-            RestoreGameplay();
+            ui.HideInvestigationWheel(dialogueActive);
+            if (dialogueActive)
+            {
+                if (inputModes != null) inputModes.TrySetMode(this, GameInputMode.Dialogue);
+            }
+            else
+            {
+                ui.SetPersistentHudVisible(true);
+                RestoreGameplay();
+            }
         }
 
         public void SelectInvestigationMenuOption(InvestigationMenuOption option)
@@ -242,9 +261,20 @@ namespace DetectiveGame.Dialogue
                 return;
             }
 
+            if (option == InvestigationMenuOption.EvidenceBoard)
+            {
+                if (evidenceBoard == null) evidenceBoard = FindAnyObjectByType<EvidenceBoardController>();
+                bool returnToDialogue = dialogueActive;
+                GameInputMode returnMode = returnToDialogue ? GameInputMode.Dialogue : GameInputMode.Gameplay;
+                if (evidenceBoard == null || !evidenceBoard.OpenFromInvestigationWheel(
+                        this, returnMode, () => ui.HideInvestigationWheel(returnToDialogue))) return;
+                wheelOpen = false;
+                ui.HideInvestigationWheel();
+                return;
+            }
+
             string label = option switch
             {
-                InvestigationMenuOption.Clues => "线索",
                 InvestigationMenuOption.Save => "存档",
                 InvestigationMenuOption.Hint => "提示",
                 InvestigationMenuOption.Settings => "设置",
@@ -323,6 +353,16 @@ namespace DetectiveGame.Dialogue
             RestoreGameplay();
         }
 
+        public void CancelDialogue()
+        {
+            if (!dialogueActive || wheelOpen || boardOpen || logOpen || EvidenceBoardController.AnyOpen) return;
+            dialogueActive = false;
+            choicesVisible = false;
+            story = null;
+            ui.HideDialogue();
+            RestoreGameplay();
+        }
+
         private void ResolveSpeaker(string characterId, out string speakerName, out Sprite portrait)
         {
             if (investigationDatabase != null &&
@@ -371,15 +411,17 @@ namespace DetectiveGame.Dialogue
 
         private void OnInvestigationMenu(InputAction.CallbackContext context)
         {
-            if (dialogueActive || logOpen) return;
+            if (logOpen || EvidenceBoardController.AnyOpen) return;
             ToggleInvestigationWheel();
         }
 
         private void OnCancel(InputAction.CallbackContext context)
         {
+            if (EvidenceBoardController.AnyOpen) return;
             if (boardOpen) CloseBoard();
             else if (logOpen) CloseDialogueLog();
             else if (wheelOpen) CloseInvestigationWheel();
+            else if (dialogueActive) CancelDialogue();
         }
     }
 

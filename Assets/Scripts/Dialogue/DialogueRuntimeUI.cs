@@ -120,9 +120,13 @@ namespace DetectiveGame.Dialogue
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(firstWheelButtonObject);
         }
 
-        public void HideInvestigationWheel()
+        public void HideInvestigationWheel(bool returnToDialogue = false)
         {
             if (wheelRoot != null) wheelRoot.SetActive(false);
+            if (!returnToDialogue) return;
+            persistentHud.SetActive(true);
+            dialogueRoot.SetActive(dialogueVisible);
+            choiceRoot.SetActive(dialogueVisible && choicesVisible);
         }
 
         public void ShowDialogue()
@@ -296,10 +300,20 @@ namespace DetectiveGame.Dialogue
             dialogueLogButtonObject = logButton.gameObject;
             logButton.onClick.AddListener(() => controller?.OpenDialogueLog());
 
-            GameObject hintPanel = CreatePanel(hudRect, "Investigation Menu Hint",
+            GameObject hintPanel = CreatePanel(hudRect, "Investigation Menu Button",
                 new Color(0.035f, 0.035f, 0.045f, 0.82f));
             hintPanel.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 64f);
-            hintPanel.GetComponent<Image>().raycastTarget = false;
+            Image hintBackground = hintPanel.GetComponent<Image>();
+            hintBackground.raycastTarget = true;
+            Button investigationButton = hintPanel.AddComponent<Button>();
+            investigationButton.targetGraphic = hintBackground;
+            ColorBlock hintColors = investigationButton.colors;
+            hintColors.normalColor = hintBackground.color;
+            hintColors.highlightedColor = Color.Lerp(hintBackground.color, Paper, 0.18f);
+            hintColors.pressedColor = Color.Lerp(hintBackground.color, Color.black, 0.2f);
+            hintColors.selectedColor = hintColors.highlightedColor;
+            investigationButton.colors = hintColors;
+            investigationButton.onClick.AddListener(() => controller?.ToggleInvestigationWheel());
             LayoutElement hintLayout = hintPanel.AddComponent<LayoutElement>();
             hintLayout.preferredWidth = 280f;
             hintLayout.preferredHeight = 64f;
@@ -337,12 +351,12 @@ namespace DetectiveGame.Dialogue
             InvestigationMenuOption[] options =
             {
                 InvestigationMenuOption.TestimonyBoard,
-                InvestigationMenuOption.Clues,
+                InvestigationMenuOption.EvidenceBoard,
                 InvestigationMenuOption.Save,
                 InvestigationMenuOption.Hint,
                 InvestigationMenuOption.Settings
             };
-            string[] labels = { "证言板", "线索", "存档", "提示", "设置" };
+            string[] labels = { "证言板", "证据板", "存档", "提示", "设置" };
             float[] angles = { 90f, 18f, -54f, -126f, 162f };
             for (int i = 0; i < options.Length; i++)
             {

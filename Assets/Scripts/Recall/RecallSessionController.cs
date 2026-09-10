@@ -1,3 +1,4 @@
+using DetectiveGame.Evidence;
 using DetectiveGame.Input;
 using StarterAssets;
 using Unity.Cinemachine;
@@ -17,6 +18,7 @@ namespace DetectiveGame.Recall
         [SerializeField] private StarterAssetsInputs starterInputs;
         [SerializeField] private RecallRuntimeUI ui;
         [SerializeField] private GameInputModeController inputModes;
+        [SerializeField] private EvidenceBoardService evidenceService;
 
         [Header("Preview")]
         [SerializeField] private int previewLayer = 2;
@@ -37,6 +39,9 @@ namespace DetectiveGame.Recall
         private GameObject stage;
         private GameObject preview;
         private float clipTime;
+        private int activePeriodIndex = -1;
+        private bool evidenceReviewEligible;
+        private bool evidenceRecorded;
         private int selectedAvailablePeriod;
         private bool draggingTimeline;
         private float transitionElapsed;
@@ -75,6 +80,7 @@ namespace DetectiveGame.Recall
             if (mainCamera != null) brain = mainCamera.GetComponent<CinemachineBrain>();
             if (ui == null) ui = GetComponent<RecallRuntimeUI>();
             if (inputModes == null) inputModes = GameInputModeController.GetOrCreate(playerInput, starterInputs);
+            if (evidenceService == null) evidenceService = EvidenceBoardService.GetOrCreate();
             State = SessionState.Idle;
         }
 
@@ -137,7 +143,11 @@ namespace DetectiveGame.Recall
             {
                 clipTime = Mathf.Min(period.AnimationClip.length, clipTime + Time.unscaledDeltaTime * period.PlaybackSpeed);
                 SampleCurrentTime();
-                if (clipTime >= period.AnimationClip.length) State = SessionState.Paused;
+                if (clipTime >= period.AnimationClip.length)
+                {
+                    State = SessionState.Paused;
+                    TryRecordReviewedEvidence();
+                }
             }
             ui.UpdatePlayback(State, period, NormalizedTime);
         }
@@ -190,6 +200,7 @@ namespace DetectiveGame.Recall
             State = SessionState.Paused;
             clipTime = Mathf.Clamp01(value) * period.AnimationClip.length;
             SampleCurrentTime();
+            if (NormalizedTime >= 0.999f) TryRecordReviewedEvidence();
             ui.UpdatePlayback(State, period, NormalizedTime);
         }
 
@@ -228,10 +239,16 @@ namespace DetectiveGame.Recall
             if (ui != null) ui.HideRecall();
             data = null;
             target = null;
+            activePeriodIndex = -1;
+            evidenceReviewEligible = false;
+            evidenceRecorded = false;
         }
 
         private void StartPeriod(int dataIndex)
         {
+            activePeriodIndex = dataIndex;
+            evidenceReviewEligible = false;
+            evidenceRecorded = false;
             period = data.GetPeriod(dataIndex);
             if (period == null || period.AnimationClip == null || data.PreviewPrefab == null)
             {
@@ -379,7 +396,16 @@ namespace DetectiveGame.Recall
                 clipTime = 0f;
                 SampleCurrentTime();
                 State = SessionState.Paused;
+                evidenceReviewEligible = true;
             }
+        }
+
+        private void TryRecordReviewedEvidence()
+        {
+            if (!evidenceReviewEligible || evidenceRecorded || target == null || target.Evidence == null ||
+                evidenceService == null || activePeriodIndex < 0) return;
+            evidenceRecorded = true;
+            evidenceService.RecordReviewedEvidence(target.Evidence, data, activePeriodIndex);
         }
 
         private static float EvaluateNormalizedProgress(AnimationCurve curve, float normalizedTime, float fallback)
