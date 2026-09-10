@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using DetectiveGame.Investigation;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 
@@ -16,6 +18,20 @@ namespace DetectiveGame.Dialogue
         [SerializeField, Range(0f, 8f)] private float backgroundBlurRadius = 3.5f;
         [SerializeField] private Color backgroundBlurTint = new Color(0.12f, 0.16f, 0.2f, 0.72f);
         [SerializeField, Range(220f, 380f)] private float wheelRadius = 295f;
+        [SerializeField, Range(70f, 180f)] private float wheelInnerRadius = 118f;
+        [SerializeField, Range(0f, 12f)] private float wheelSegmentGap = 5f;
+        [SerializeField, Range(50f, 180f)] private float wheelCenterDeadZone = 105f;
+        [SerializeField, Range(0.1f, 0.5f)] private float wheelOpenDuration = 0.24f;
+        [SerializeField, Range(0.08f, 0.4f)] private float wheelCloseDuration = 0.16f;
+        [SerializeField, Range(0.4f, 0.95f)] private float wheelStartScale = 0.72f;
+        [SerializeField, Range(0.7f, 1f)] private float wheelCloseScale = 0.87f;
+        [SerializeField, Range(0f, 0.08f)] private float wheelSegmentStagger = 0.025f;
+        [SerializeField, Range(0f, 40f)] private float wheelHoverOffset = 14f;
+        [SerializeField, Range(1f, 1.2f)] private float wheelHoverScale = 1.08f;
+        [SerializeField, Range(0.03f, 0.3f)] private float wheelHoverDuration = 0.1f;
+        [SerializeField] private AnimationCurve wheelOpenScaleCurve = new AnimationCurve(
+            new Keyframe(0f, 0f), new Keyframe(0.72f, 1.07f), new Keyframe(1f, 1f));
+        [SerializeField] private AnimationCurve wheelCloseCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
 
         private static readonly Color InkBlack = new Color(0.025f, 0.025f, 0.03f, 0.94f);
         private static readonly Color Paper = new Color(0.93f, 0.91f, 0.84f, 1f);
@@ -24,6 +40,7 @@ namespace DetectiveGame.Dialogue
 
         private readonly List<GameObject> choiceObjects = new List<GameObject>();
         private readonly List<GameObject> ownedObjects = new List<GameObject>();
+        private readonly List<WheelItemView> wheelItems = new List<WheelItemView>();
 
         private DialogueController controller;
         private InvestigationKnowledgeService knowledge;
@@ -34,7 +51,13 @@ namespace DetectiveGame.Dialogue
         private GameObject persistentHud;
         private GameObject dialogueLogButtonObject;
         private GameObject wheelRoot;
-        private GameObject firstWheelButtonObject;
+        private CanvasGroup wheelCanvasGroup;
+        private RectTransform wheelContainer;
+        private Text wheelCenterText;
+        private Coroutine wheelTransition;
+        private bool wheelInteractive;
+        private bool wheelClosing;
+        private int selectedWheelIndex = -1;
         private GameObject dialogueRoot;
         private GameObject choiceRoot;
         private RectTransform choiceContainer;
@@ -66,6 +89,19 @@ namespace DetectiveGame.Dialogue
         private bool choicesVisible;
         private float toastRemaining;
 
+        private sealed class WheelItemView
+        {
+            public InvestigationMenuOption Option;
+            public string Label;
+            public float Angle;
+            public RadialMenuSegmentGraphic Segment;
+            public RectTransform Content;
+            public CanvasGroup ContentCanvasGroup;
+            public Text Icon;
+            public Text Caption;
+            public Vector2 BasePosition;
+        }
+
         private void Awake()
         {
             EnsureEventSystem();
@@ -74,9 +110,13 @@ namespace DetectiveGame.Dialogue
 
         private void Update()
         {
-            if (toastRemaining <= 0f) return;
-            toastRemaining -= Time.unscaledDeltaTime;
-            if (toastRemaining <= 0f && toastRoot != null) toastRoot.SetActive(false);
+            if (wheelRoot != null && wheelRoot.activeSelf) UpdateInvestigationWheel();
+
+            if (toastRemaining > 0f)
+            {
+                toastRemaining -= Time.unscaledDeltaTime;
+                if (toastRemaining <= 0f && toastRoot != null) toastRoot.SetActive(false);
+            }
         }
 
         private void OnDestroy()
@@ -117,16 +157,29 @@ namespace DetectiveGame.Dialogue
             boardRoot.SetActive(false);
             logRoot.SetActive(false);
             wheelRoot.SetActive(true);
-            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(firstWheelButtonObject);
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            BeginWheelTransition(AnimateWheelOpen());
         }
 
-        public void HideInvestigationWheel(bool returnToDialogue = false)
+        public void HideInvestigationWheel(
+            bool returnToDialogue = false,
+            Action onHidden = null,
+            bool immediate = false)
         {
-            if (wheelRoot != null) wheelRoot.SetActive(false);
-            if (!returnToDialogue) return;
-            persistentHud.SetActive(true);
-            dialogueRoot.SetActive(dialogueVisible);
-            choiceRoot.SetActive(dialogueVisible && choicesVisible);
+            if (wheelRoot == null)
+            {
+                onHidden?.Invoke();
+                return;
+            }
+
+            if (immediate || !wheelRoot.activeSelf)
+            {
+                StopWheelTransition();
+                FinishHidingWheel(returnToDialogue, onHidden);
+                return;
+            }
+
+            BeginWheelTransition(AnimateWheelClose(returnToDialogue, onHidden));
         }
 
         public void ShowDialogue()
@@ -327,6 +380,8 @@ namespace DetectiveGame.Dialogue
         {
             wheelRoot = CreatePanel(parent, "Investigation Wheel", new Color(0.015f, 0.02f, 0.028f, 0.78f));
             StretchFull(wheelRoot.GetComponent<RectTransform>());
+            wheelCanvasGroup = wheelRoot.AddComponent<CanvasGroup>();
+            wheelRoot.AddComponent<RadialMenuPointerHandler>().Configure(ConfirmWheelSelection);
 
             Shader blurShader = Shader.Find("DetectiveGame/UI/InvestigationBackgroundBlur");
             if (blurShader != null)
@@ -337,16 +392,14 @@ namespace DetectiveGame.Dialogue
                 wheelRoot.GetComponent<Image>().material = blurMaterial;
             }
 
-            GameObject center = CreatePanel(wheelRoot.transform, "Wheel Center",
-                new Color(0.025f, 0.03f, 0.04f, 0.94f));
-            SetRect(center.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                Vector2.zero, new Vector2(300f, 150f), new Vector2(0.5f, 0.5f));
-            Outline centerOutline = center.AddComponent<Outline>();
-            centerOutline.effectColor = new Color(0.72f, 0.68f, 0.58f, 0.65f);
-            centerOutline.effectDistance = new Vector2(2f, -2f);
-            Text centerText = CreateText(center.transform, "Title", "调查菜单\n<size=20>Tab / Esc 返回</size>", 34,
-                TextAnchor.MiddleCenter, Paper);
-            StretchFull(centerText.rectTransform, 12f);
+            wheelContainer = CreateRectObject("Wheel Container", wheelRoot.transform);
+            SetRect(wheelContainer, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                Vector2.zero, Vector2.one * (wheelRadius * 2f + 40f), new Vector2(0.5f, 0.5f));
+
+            CreateRadialGraphic(wheelContainer, "Outer Rim", wheelRadius + 3f, wheelRadius + 7f,
+                0f, 360f, 64, new Color(0.52f, 0.78f, 0.9f, 0.65f));
+            CreateRadialGraphic(wheelContainer, "Inner Rim", wheelInnerRadius - 5f, wheelInnerRadius - 1f,
+                0f, 360f, 48, new Color(0.42f, 0.62f, 0.72f, 0.55f));
 
             InvestigationMenuOption[] options =
             {
@@ -357,26 +410,291 @@ namespace DetectiveGame.Dialogue
                 InvestigationMenuOption.Settings
             };
             string[] labels = { "证言板", "证据板", "存档", "提示", "设置" };
+            string[] icons = { "证", "据", "存", "?", "设" };
             float[] angles = { 90f, 18f, -54f, -126f, 162f };
+            float contentRadius = Mathf.Lerp(wheelInnerRadius, wheelRadius, 0.56f);
+            float sectorSpan = 72f - wheelSegmentGap;
             for (int i = 0; i < options.Length; i++)
             {
-                InvestigationMenuOption captured = options[i];
                 float radians = angles[i] * Mathf.Deg2Rad;
-                Vector2 position = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)) * wheelRadius;
-                Button button = CreateButton(wheelRoot.transform, $"Wheel {labels[i]}", labels[i],
-                    new Vector2(230f, 88f),
-                    i == 0 ? new Color(0.72f, 0.68f, 0.58f, 0.98f) : new Color(0.09f, 0.105f, 0.13f, 0.97f),
-                    i == 0 ? Color.black : Paper, 29);
-                SetRect(button.GetComponent<RectTransform>(), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
-                    position, new Vector2(230f, 88f), new Vector2(0.5f, 0.5f));
-                Outline outline = button.gameObject.AddComponent<Outline>();
-                outline.effectColor = new Color(0.82f, 0.8f, 0.72f, 0.65f);
-                outline.effectDistance = new Vector2(2f, -2f);
-                button.onClick.AddListener(() => controller?.SelectInvestigationMenuOption(captured));
-                if (i == 0) firstWheelButtonObject = button.gameObject;
+                Vector2 direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+                RadialMenuSegmentGraphic segment = CreateRadialGraphic(
+                    wheelContainer, $"Segment {labels[i]}", wheelInnerRadius, wheelRadius,
+                    angles[i], sectorSpan, 18, WheelNormalColor);
+
+                RectTransform content = CreateRectObject($"Content {labels[i]}", wheelContainer);
+                SetRect(content, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    direction * contentRadius, new Vector2(150f, 128f), new Vector2(0.5f, 0.5f));
+                CanvasGroup contentCanvasGroup = content.gameObject.AddComponent<CanvasGroup>();
+
+                RectTransform badge = CreateRectObject("Icon Badge", content);
+                SetRect(badge, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+                    new Vector2(0f, 18f), new Vector2(76f, 76f), new Vector2(0.5f, 0.5f));
+                RadialMenuSegmentGraphic badgeGraphic = badge.gameObject.AddComponent<RadialMenuSegmentGraphic>();
+                badgeGraphic.Configure(0f, 38f, 0f, 360f, 32,
+                    new Color(0.025f, 0.035f, 0.045f, 0.96f));
+
+                Text icon = CreateText(badge, "Icon", icons[i], 38, TextAnchor.MiddleCenter, Paper);
+                StretchFull(icon.rectTransform, 4f);
+                Text caption = CreateText(content, "Caption", labels[i], 25, TextAnchor.MiddleCenter, Paper);
+                SetRect(caption.rectTransform, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                    new Vector2(0f, 2f), new Vector2(150f, 38f), new Vector2(0.5f, 0f));
+
+                wheelItems.Add(new WheelItemView
+                {
+                    Option = options[i],
+                    Label = labels[i],
+                    Angle = angles[i],
+                    Segment = segment,
+                    Content = content,
+                    ContentCanvasGroup = contentCanvasGroup,
+                    Icon = icon,
+                    Caption = caption,
+                    BasePosition = direction * contentRadius
+                });
             }
 
+            RadialMenuSegmentGraphic center = CreateRadialGraphic(
+                wheelContainer, "Wheel Center", 0f, wheelInnerRadius - 12f,
+                0f, 360f, 48, new Color(0.018f, 0.025f, 0.035f, 0.985f));
+            center.transform.SetAsLastSibling();
+            wheelCenterText = CreateText(center.transform, "Title",
+                "调查菜单\n<size=18>移动鼠标选择</size>", 31, TextAnchor.MiddleCenter, Paper);
+            StretchFull(wheelCenterText.rectTransform, 18f);
+
+            wheelCanvasGroup.alpha = 0f;
             wheelRoot.SetActive(false);
+        }
+
+        private static readonly Color WheelNormalColor = new Color(0.055f, 0.07f, 0.09f, 0.97f);
+        private static readonly Color WheelSelectedColor = new Color(0.12f, 0.42f, 0.58f, 0.99f);
+
+        private RadialMenuSegmentGraphic CreateRadialGraphic(
+            Transform parent,
+            string name,
+            float innerRadius,
+            float outerRadius,
+            float centerAngle,
+            float spanAngle,
+            int subdivisions,
+            Color color)
+        {
+            RectTransform rect = CreateRectObject(name, parent);
+            StretchFull(rect);
+            RadialMenuSegmentGraphic graphic = rect.gameObject.AddComponent<RadialMenuSegmentGraphic>();
+            graphic.Configure(innerRadius, outerRadius, centerAngle, spanAngle, subdivisions, color);
+            return graphic;
+        }
+
+        private void UpdateInvestigationWheel()
+        {
+            if (!wheelInteractive || wheelClosing || Mouse.current == null || wheelContainer == null) return;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    wheelContainer, Mouse.current.position.ReadValue(), null, out Vector2 pointerPosition)) return;
+
+            int nextIndex = -1;
+            if (pointerPosition.magnitude >= wheelCenterDeadZone)
+            {
+                float pointerAngle = Mathf.Atan2(pointerPosition.y, pointerPosition.x) * Mathf.Rad2Deg;
+                float nearestDifference = float.PositiveInfinity;
+                for (int i = 0; i < wheelItems.Count; i++)
+                {
+                    float difference = Mathf.Abs(Mathf.DeltaAngle(pointerAngle, wheelItems[i].Angle));
+                    if (difference >= nearestDifference) continue;
+                    nearestDifference = difference;
+                    nextIndex = i;
+                }
+            }
+
+            if (nextIndex != selectedWheelIndex) SetWheelSelection(nextIndex);
+            UpdateWheelHoverVisuals();
+        }
+
+        private void SetWheelSelection(int index)
+        {
+            selectedWheelIndex = index;
+            if (wheelCenterText == null) return;
+            wheelCenterText.text = index >= 0 && index < wheelItems.Count
+                ? $"{wheelItems[index].Label}\n<size=18>单击进入</size>"
+                : "调查菜单\n<size=18>移动鼠标选择</size>";
+        }
+
+        private void UpdateWheelHoverVisuals(bool immediate = false)
+        {
+            float duration = Mathf.Max(0.01f, wheelHoverDuration);
+            float blend = immediate ? 1f : 1f - Mathf.Exp(-Time.unscaledDeltaTime * 5f / duration);
+            for (int i = 0; i < wheelItems.Count; i++)
+            {
+                WheelItemView item = wheelItems[i];
+                bool selected = i == selectedWheelIndex;
+                float radians = item.Angle * Mathf.Deg2Rad;
+                Vector2 direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+                Vector2 targetPosition = item.BasePosition + (selected ? direction * wheelHoverOffset : Vector2.zero);
+                Vector3 targetScale = Vector3.one * (selected ? wheelHoverScale : 1f);
+                Color targetColor = selected ? WheelSelectedColor : WheelNormalColor;
+
+                item.Content.anchoredPosition = Vector2.Lerp(item.Content.anchoredPosition, targetPosition, blend);
+                item.Content.localScale = Vector3.Lerp(item.Content.localScale, targetScale, blend);
+                item.Segment.color = Color.Lerp(item.Segment.color, targetColor, blend);
+                item.Icon.color = Color.Lerp(item.Icon.color, selected ? Color.white : Paper, blend);
+                item.Caption.color = Color.Lerp(item.Caption.color,
+                    selected ? new Color(0.72f, 0.9f, 1f, 1f) : Paper, blend);
+            }
+        }
+
+        private void ConfirmWheelSelection()
+        {
+            if (!wheelInteractive || wheelClosing || selectedWheelIndex < 0 ||
+                selectedWheelIndex >= wheelItems.Count) return;
+            controller?.SelectInvestigationMenuOption(wheelItems[selectedWheelIndex].Option);
+        }
+
+        private void BeginWheelTransition(IEnumerator transition)
+        {
+            StopWheelTransition();
+            wheelTransition = StartCoroutine(transition);
+        }
+
+        private void StopWheelTransition()
+        {
+            if (wheelTransition == null) return;
+            StopCoroutine(wheelTransition);
+            wheelTransition = null;
+        }
+
+        private IEnumerator AnimateWheelOpen()
+        {
+            wheelClosing = false;
+            wheelInteractive = false;
+            SetWheelSelection(-1);
+            wheelCanvasGroup.alpha = 0f;
+            wheelContainer.localScale = Vector3.one * wheelStartScale;
+            wheelContainer.localRotation = Quaternion.Euler(0f, 0f, -6f);
+
+            float iconStartRadius = Mathf.Max(30f, wheelInnerRadius * 0.62f);
+            for (int i = 0; i < wheelItems.Count; i++)
+            {
+                WheelItemView item = wheelItems[i];
+                float radians = item.Angle * Mathf.Deg2Rad;
+                Vector2 direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+                item.Content.anchoredPosition = direction * iconStartRadius;
+                item.Content.localScale = Vector3.one * 0.72f;
+                item.ContentCanvasGroup.alpha = 0f;
+                item.Segment.color = WheelNormalColor;
+            }
+
+            float elapsed = 0f;
+            float duration = Mathf.Max(0.01f, wheelOpenDuration);
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = EaseOutCubic(t);
+                float scaleProgress = wheelOpenScaleCurve == null ? eased : wheelOpenScaleCurve.Evaluate(t);
+                wheelCanvasGroup.alpha = eased;
+                wheelContainer.localScale = Vector3.one * Mathf.LerpUnclamped(wheelStartScale, 1f, scaleProgress);
+                wheelContainer.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(-6f, 0f, eased));
+
+                for (int i = 0; i < wheelItems.Count; i++)
+                {
+                    WheelItemView item = wheelItems[i];
+                    float localDuration = Mathf.Max(0.01f, duration - wheelSegmentStagger * (wheelItems.Count - 1));
+                    float localT = Mathf.Clamp01((elapsed - wheelSegmentStagger * i) / localDuration);
+                    float itemEase = EaseOutCubic(localT);
+                    float radians = item.Angle * Mathf.Deg2Rad;
+                    Vector2 direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+                    item.Content.anchoredPosition = Vector2.LerpUnclamped(
+                        direction * iconStartRadius, item.BasePosition, itemEase);
+                    item.Content.localScale = Vector3.one * Mathf.Lerp(0.72f, 1f, itemEase);
+                    item.ContentCanvasGroup.alpha = itemEase;
+                }
+
+                yield return null;
+            }
+
+            wheelCanvasGroup.alpha = 1f;
+            wheelContainer.localScale = Vector3.one;
+            wheelContainer.localRotation = Quaternion.identity;
+            for (int i = 0; i < wheelItems.Count; i++)
+            {
+                wheelItems[i].Content.anchoredPosition = wheelItems[i].BasePosition;
+                wheelItems[i].Content.localScale = Vector3.one;
+                wheelItems[i].ContentCanvasGroup.alpha = 1f;
+            }
+
+            wheelInteractive = true;
+            wheelTransition = null;
+            UpdateWheelHoverVisuals(true);
+        }
+
+        private IEnumerator AnimateWheelClose(bool returnToDialogue, Action onHidden)
+        {
+            wheelClosing = true;
+            wheelInteractive = false;
+            SetWheelSelection(-1);
+
+            float elapsed = 0f;
+            float duration = Mathf.Max(0.01f, wheelCloseDuration);
+            Vector3 initialScale = wheelContainer.localScale;
+            Quaternion initialRotation = wheelContainer.localRotation;
+            float[] initialAlpha = new float[wheelItems.Count];
+            Vector2[] initialPositions = new Vector2[wheelItems.Count];
+            for (int i = 0; i < wheelItems.Count; i++)
+            {
+                initialAlpha[i] = wheelItems[i].ContentCanvasGroup.alpha;
+                initialPositions[i] = wheelItems[i].Content.anchoredPosition;
+            }
+
+            float iconEndRadius = Mathf.Max(30f, wheelInnerRadius * 0.62f);
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = wheelCloseCurve == null ? t : wheelCloseCurve.Evaluate(t);
+                wheelCanvasGroup.alpha = 1f - eased;
+                wheelContainer.localScale = Vector3.LerpUnclamped(
+                    initialScale, Vector3.one * wheelCloseScale, eased);
+                wheelContainer.localRotation = Quaternion.SlerpUnclamped(
+                    initialRotation, Quaternion.Euler(0f, 0f, 5f), eased);
+
+                for (int i = 0; i < wheelItems.Count; i++)
+                {
+                    WheelItemView item = wheelItems[i];
+                    float radians = item.Angle * Mathf.Deg2Rad;
+                    Vector2 direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+                    item.Content.anchoredPosition = Vector2.LerpUnclamped(
+                        initialPositions[i], direction * iconEndRadius, eased);
+                    item.Content.localScale = Vector3.one * Mathf.Lerp(1f, 0.78f, eased);
+                    item.ContentCanvasGroup.alpha = Mathf.Lerp(initialAlpha[i], 0f, eased);
+                }
+
+                yield return null;
+            }
+
+            wheelTransition = null;
+            FinishHidingWheel(returnToDialogue, onHidden);
+        }
+
+        private void FinishHidingWheel(bool returnToDialogue, Action onHidden)
+        {
+            wheelClosing = false;
+            wheelInteractive = false;
+            selectedWheelIndex = -1;
+            wheelCanvasGroup.alpha = 0f;
+            wheelRoot.SetActive(false);
+            if (returnToDialogue)
+            {
+                persistentHud.SetActive(true);
+                dialogueRoot.SetActive(dialogueVisible);
+                choiceRoot.SetActive(dialogueVisible && choicesVisible);
+            }
+            onHidden?.Invoke();
+        }
+
+        private static float EaseOutCubic(float value)
+        {
+            float inverse = 1f - Mathf.Clamp01(value);
+            return 1f - inverse * inverse * inverse;
         }
 
         private void BuildDialogue(Transform parent)
