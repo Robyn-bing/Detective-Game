@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using DetectiveGame.Interaction;
 using DetectiveGame.Player;
 using StarterAssets;
 using Unity.Cinemachine;
@@ -47,6 +48,8 @@ namespace DetectiveGame.EditorTools
             var input = player.GetComponent<StarterAssetsInputs>();
             var device = player.GetComponent<PlayerInput>();
             var controller = player.GetComponent<CharacterController>();
+            var studyDoor = GameObject.Find("Door_Hinge_Open100deg")?.GetComponent<DoorInteractable>();
+            bool originalDoorOpen = studyDoor != null && studyDoor.IsOpen;
             var camera = Camera.main;
             var brain = camera.GetComponent<CinemachineBrain>();
             var renderer = player.transform.Find("Geometry/Armature_Mesh").GetComponent<SkinnedMeshRenderer>();
@@ -70,7 +73,11 @@ namespace DetectiveGame.EditorTools
                 yield return new WaitForSeconds(0.5f);
                 Check(view.IsFirstPerson && brain.ActiveVirtualCamera.Name == "PlayerFirstPersonCamera", "First-person camera is active");
                 Check(Mathf.Abs(camera.fieldOfView - 75f) < 0.1f && camera.nearClipPlane < 0.05f, "First-person lens is applied");
-                Check(UnityEngine.Object.FindObjectsByType<Camera>().Length == 1, "Only one real rendering camera");
+                Camera[] sceneCameras = UnityEngine.Object.FindObjectsByType<Camera>();
+                int enabledCameraCount = 0;
+                for (int i = 0; i < sceneCameras.Length; i++)
+                    if (sceneCameras[i].enabled) enabledCameraCount++;
+                Check(enabledCameraCount == 1, "Only one real rendering camera is enabled");
                 var body = renderer.transform.GetChild(0).GetComponent<SkinnedMeshRenderer>();
                 Check(body != null && body.enabled && renderer.shadowCastingMode == ShadowCastingMode.ShadowsOnly,
                     "Headless body is visible; complete original still casts shadows");
@@ -91,6 +98,7 @@ namespace DetectiveGame.EditorTools
                 Check(Vector3.Dot(player.transform.position - before, startRotation * Vector3.forward) < -0.5f &&
                     Mathf.Abs(Mathf.DeltaAngle(yaw, player.transform.eulerAngles.y)) < 0.1f, "S walks backwards without turning the body");
 
+                studyDoor?.SetOpen(true, true);
                 Teleport(controller, startPosition, startRotation);
                 input.MoveInput(Vector2.up);
                 yield return new WaitForSeconds(3.0f);
@@ -194,6 +202,7 @@ namespace DetectiveGame.EditorTools
                 input.SprintInput(false);
                 move.CanJump = originalJump;
                 view.UseFirstPerson = originalMode;
+                studyDoor?.SetOpen(originalDoorOpen, true);
                 Teleport(controller, startPosition, startRotation);
                 if (originalInput) device.ActivateInput();
                 Application.runInBackground = originalRunInBackground;

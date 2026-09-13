@@ -23,12 +23,14 @@ namespace DetectiveGame.Recall
         [Header("Preview")]
         [SerializeField] private int previewLayer = 2;
         [SerializeField, Min(0.01f)] private float previewNearClip = 0.03f;
+        [SerializeField] private Shader dissolveShader;
 
         private readonly InputAction playPauseAction = new InputAction("Recall Play Pause", InputActionType.Button, "<Keyboard>/space");
         private readonly InputAction cancelAction = new InputAction("Recall Cancel", InputActionType.Button, "<Keyboard>/escape");
         private readonly InputAction previousAction = new InputAction("Previous Recall Period", InputActionType.Button, "<Keyboard>/leftArrow");
         private readonly InputAction nextAction = new InputAction("Next Recall Period", InputActionType.Button, "<Keyboard>/rightArrow");
         private readonly InputAction submitAction = new InputAction("Select Recall Period", InputActionType.Button, "<Keyboard>/enter");
+        private readonly InputAction periodDigitAction = new InputAction("Select Recall Period Number", InputActionType.Button);
         private readonly InputAction pointerPositionAction = new InputAction("Recall Pointer Position", InputActionType.Value, "<Pointer>/position");
         private readonly InputAction pointerPressAction = new InputAction("Recall Pointer Press", InputActionType.Button, "<Pointer>/press");
 
@@ -50,8 +52,13 @@ namespace DetectiveGame.Recall
         private float transitionStartFieldOfView;
         private Vector3 previewCameraPosition;
         private Quaternion previewCameraRotation;
-        private Renderer[] hiddenTargetRenderers;
-        private bool[] hiddenTargetRendererStates;
+        private RecallDissolveVisual targetDissolveVisual;
+        private RecallDissolveVisual previewDissolveVisual;
+        private bool entryPreviewActivated;
+        private bool exitWorldActivated;
+        private bool exitUsesWorldObject;
+        private float exitSourceDissolve;
+        private float exitSourceDesaturation;
         private Renderer[] hiddenPlayerRenderers;
         private bool[] hiddenPlayerRendererStates;
 
@@ -73,6 +80,7 @@ namespace DetectiveGame.Recall
         public float NormalizedTime => period?.AnimationClip == null || period.AnimationClip.length <= 0f
             ? 0f : Mathf.Clamp01(clipTime / period.AnimationClip.length);
         public GameObject ActivePreview => preview;
+        public int ActivePeriodIndex => activePeriodIndex;
 
         private void Awake()
         {
@@ -81,6 +89,15 @@ namespace DetectiveGame.Recall
             if (ui == null) ui = GetComponent<RecallRuntimeUI>();
             if (inputModes == null) inputModes = GameInputModeController.GetOrCreate(playerInput, starterInputs);
             if (evidenceService == null) evidenceService = EvidenceBoardService.GetOrCreate();
+            if (dissolveShader == null)
+                dissolveShader = Shader.Find("DetectiveGame/Recall Dissolve");
+            if (dissolveShader == null)
+                Debug.LogError("Recall dissolve shader was not found. Recall transitions will not render correctly.", this);
+            for (int number = 1; number <= 9; number++)
+            {
+                periodDigitAction.AddBinding($"<Keyboard>/{number}");
+                periodDigitAction.AddBinding($"<Keyboard>/numpad{number}");
+            }
             State = SessionState.Idle;
         }
 
@@ -92,6 +109,7 @@ namespace DetectiveGame.Recall
             previousAction.performed += OnPrevious;
             nextAction.performed += OnNext;
             submitAction.performed += OnSubmit;
+            periodDigitAction.performed += OnPeriodDigit;
         }
 
         private void OnDisable()
@@ -101,6 +119,7 @@ namespace DetectiveGame.Recall
             previousAction.performed -= OnPrevious;
             nextAction.performed -= OnNext;
             submitAction.performed -= OnSubmit;
+            periodDigitAction.performed -= OnPeriodDigit;
             EnableActions(false);
             if (IsActive) CompleteExitRecall();
         }
@@ -112,6 +131,7 @@ namespace DetectiveGame.Recall
             previousAction.Dispose();
             nextAction.Dispose();
             submitAction.Dispose();
+            periodDigitAction.Dispose();
             pointerPositionAction.Dispose();
             pointerPressAction.Dispose();
         }
@@ -128,7 +148,6 @@ namespace DetectiveGame.Recall
             if (State == SessionState.TransitioningIn)
             {
                 UpdateSynchronizedEntry();
-                ui.UpdatePlayback(State, period, NormalizedTime);
                 return;
             }
             if (State == SessionState.TransitioningOut)
@@ -164,22 +183,33 @@ namespace DetectiveGame.Recall
             if (!FreezeGameplay()) return;
             target = recallable;
             data = target.Data;
-            ui.SetWorldPrompt(null);
             if (data.AvailablePeriodCount == 1)
+            {
+                ui.SetWorldPrompt(null);
                 StartPeriod(data.GetAvailablePeriodIndex(0));
+            }
             else
             {
                 selectedAvailablePeriod = 0;
                 State = SessionState.SelectingPeriod;
-                ui.ShowPeriodSelection(data, selectedAvailablePeriod);
+                ui.ShowPeriodSelection(data, target, selectedAvailablePeriod);
             }
         }
 
         public void SelectAvailablePeriod(int availableIndex)
         {
             if (State != SessionState.SelectingPeriod || data == null) return;
-            int dataIndex = data.GetAvailablePeriodIndex(Mathf.Clamp(availableIndex, 0, data.AvailablePeriodCount - 1));
+            if (availableIndex < 0 || availableIndex >= data.AvailablePeriodCount) return;
+            int dataIndex = data.GetAvailablePeriodIndex(availableIndex);
             if (dataIndex >= 0) StartPeriod(dataIndex);
+        }
+
+        public bool TrySelectPeriodByNumber(int oneBasedNumber)
+        {
+            if (State != SessionState.SelectingPeriod || data == null ||
+                oneBasedNumber < 1 || oneBasedNumber > data.AvailablePeriodCount) return false;
+            SelectAvailablePeriod(oneBasedNumber - 1);
+            return true;
         }
 
         public void TogglePlayback()
@@ -218,6 +248,25 @@ namespace DetectiveGame.Recall
             transitionStartRotation = mainCamera.transform.rotation;
             transitionStartFieldOfView = mainCamera.fieldOfView;
             transitionElapsed = 0f;
+            exitWorldActivated = false;
+            exitUsesWorldObject = State == SessionState.TransitioningIn && !entryPreviewActivated;
+            RecallDissolveVisual exitSource = exitUsesWorldObject
+                ? targetDissolveVisual
+                : previewDissolveVisual;
+            exitSourceDissolve = exitSource?.DissolveAmount ?? 0f;
+            exitSourceDesaturation = exitSource?.Desaturation ?? 0f;
+            if (exitUsesWorldObject)
+            {
+                previewDissolveVisual?.SetVisible(false);
+                targetDissolveVisual?.BeginTransition(
+                    true, exitSourceDissolve, exitSourceDesaturation);
+            }
+            else
+            {
+                previewDissolveVisual?.BeginTransition(
+                    true, exitSourceDissolve, exitSourceDesaturation);
+                targetDissolveVisual?.BeginTransition(false, 1f, 1f);
+            }
             State = SessionState.TransitioningOut;
             if (ui != null) ui.HideRecall();
         }
@@ -227,11 +276,11 @@ namespace DetectiveGame.Recall
             if (!IsActive) return;
             State = SessionState.Idle;
             draggingTimeline = false;
+            ReleaseDissolveVisuals();
             if (stage != null) Destroy(stage);
             stage = null;
             preview = null;
             period = null;
-            RestoreOriginalTarget();
             RestoreCamera();
             RestorePlayerVisuals();
             Time.timeScale = previousTimeScale;
@@ -246,6 +295,8 @@ namespace DetectiveGame.Recall
 
         private void StartPeriod(int dataIndex)
         {
+            ui.HidePeriodSelection();
+            ui.SetWorldPrompt(null);
             activePeriodIndex = dataIndex;
             evidenceReviewEligible = false;
             evidenceRecorded = false;
@@ -257,13 +308,12 @@ namespace DetectiveGame.Recall
                 return;
             }
             CreatePreview();
-            clipTime = period.AnimationClip.length;
+            clipTime = 0f;
             SampleCurrentTime();
             FramePreviewCamera();
             HidePlayerVisuals();
             BeginSynchronizedEntry();
-            ui.ShowPlayback(data, period);
-            ui.UpdatePlayback(State, period, NormalizedTime);
+            ui.ShowReconstruction(data);
         }
 
         private void CreatePreview()
@@ -284,7 +334,15 @@ namespace DetectiveGame.Recall
             foreach (Animator animator in preview.GetComponentsInChildren<Animator>(true)) animator.enabled = false;
             foreach (Animation animation in preview.GetComponentsInChildren<Animation>(true)) animation.enabled = false;
 
-            HideOriginalTarget();
+            target.SetInteractionHighlight(false, null);
+            targetDissolveVisual = new RecallDissolveVisual(
+                target.gameObject, dissolveShader, data.DissolveEdgeColor,
+                data.DissolveEdgeWidth, data.DissolveNoiseScale);
+            previewDissolveVisual = new RecallDissolveVisual(
+                preview, dissolveShader, data.DissolveEdgeColor,
+                data.DissolveEdgeWidth, data.DissolveNoiseScale);
+            targetDissolveVisual.BeginTransition(true, 0f, 0f);
+            previewDissolveVisual.BeginTransition(false, 1f, 1f);
 
             var lightObject = new GameObject("Recall Key Light");
             lightObject.transform.SetParent(stage.transform, false);
@@ -372,6 +430,7 @@ namespace DetectiveGame.Recall
             transitionStartRotation = mainCamera.transform.rotation;
             transitionStartFieldOfView = mainCamera.fieldOfView;
             transitionElapsed = 0f;
+            entryPreviewActivated = false;
             State = SessionState.TransitioningIn;
         }
 
@@ -382,22 +441,52 @@ namespace DetectiveGame.Recall
             float t = Mathf.Clamp01(transitionElapsed / duration);
             float cameraProgress = EvaluateNormalizedProgress(
                 data.CameraEntryProgressCurve, t, t * t * (3f - 2f * t));
-            float rewindProgress = EvaluateNormalizedProgress(period.RewindProgressCurve, t, t);
             mainCamera.transform.SetPositionAndRotation(
                 Vector3.Lerp(transitionStartPosition, previewCameraPosition, cameraProgress),
                 Quaternion.Slerp(transitionStartRotation, previewCameraRotation, cameraProgress));
             mainCamera.fieldOfView = Mathf.Lerp(transitionStartFieldOfView, data.PreviewFieldOfView, cameraProgress);
-            clipTime = period.AnimationClip.length * (1f - rewindProgress);
-            SampleCurrentTime();
+            UpdateEntryReconstruction(t);
             if (t >= 1f)
             {
                 mainCamera.transform.SetPositionAndRotation(previewCameraPosition, previewCameraRotation);
                 mainCamera.fieldOfView = data.PreviewFieldOfView;
                 clipTime = 0f;
                 SampleCurrentTime();
+                ActivateEntryPreview();
+                targetDissolveVisual?.RestoreAppearance(false);
+                previewDissolveVisual?.RestoreAppearance(true);
                 State = SessionState.Paused;
                 evidenceReviewEligible = true;
+                ui.ShowPlayback(data, period);
+                ui.UpdatePlayback(State, period, 0f);
             }
+        }
+
+        private void UpdateEntryReconstruction(float normalizedTime)
+        {
+            float colorFade = EvaluatePhaseProgress(
+                data.ColorFadeCurve, normalizedTime, 0f, data.ColorFadeEnd);
+            float dissolveOut = EvaluatePhaseProgress(
+                data.DissolveOutCurve, normalizedTime, data.DissolveOutStart, data.DissolveOutEnd);
+            targetDissolveVisual?.SetEffect(dissolveOut, colorFade);
+
+            float switchPoint = Mathf.Lerp(data.DissolveOutEnd, data.RevealStart, 0.5f);
+            if (normalizedTime >= switchPoint) ActivateEntryPreview();
+            if (!entryPreviewActivated) return;
+
+            float reveal = EvaluatePhaseProgress(data.RevealCurve, normalizedTime, data.RevealStart, 1f);
+            previewDissolveVisual?.SetEffect(1f - reveal, 1f - reveal);
+        }
+
+        private void ActivateEntryPreview()
+        {
+            if (entryPreviewActivated) return;
+            entryPreviewActivated = true;
+            targetDissolveVisual?.SetEffect(1f, 1f);
+            targetDissolveVisual?.SetVisible(false);
+            clipTime = 0f;
+            SampleCurrentTime();
+            previewDissolveVisual?.BeginTransition(true, 1f, 1f);
         }
 
         private void TryRecordReviewedEvidence()
@@ -405,7 +494,7 @@ namespace DetectiveGame.Recall
             if (!evidenceReviewEligible || evidenceRecorded || target == null || target.Evidence == null ||
                 evidenceService == null || activePeriodIndex < 0) return;
             evidenceRecorded = true;
-            evidenceService.RecordReviewedEvidence(target.Evidence, data, activePeriodIndex);
+            evidenceService.RecordReviewedEvidence(target.Evidence, data, period.PeriodId);
         }
 
         private static float EvaluateNormalizedProgress(AnimationCurve curve, float normalizedTime, float fallback)
@@ -422,6 +511,18 @@ namespace DetectiveGame.Recall
             return Mathf.Clamp01((curve.Evaluate(curveTime) - first.value) / valueRange);
         }
 
+        private static float EvaluatePhaseProgress(
+            AnimationCurve curve,
+            float normalizedTime,
+            float phaseStart,
+            float phaseEnd)
+        {
+            if (phaseEnd <= phaseStart + Mathf.Epsilon)
+                return normalizedTime >= phaseEnd ? 1f : 0f;
+            float phaseTime = Mathf.InverseLerp(phaseStart, phaseEnd, normalizedTime);
+            return EvaluateNormalizedProgress(curve, phaseTime, phaseTime);
+        }
+
         private void UpdateCameraReturnTransition()
         {
             float duration = Mathf.Max(0.05f, data.CameraReturnTransitionSeconds);
@@ -432,31 +533,57 @@ namespace DetectiveGame.Recall
                 Vector3.Lerp(transitionStartPosition, previousCameraPosition, smoothT),
                 Quaternion.Slerp(transitionStartRotation, previousCameraRotation, smoothT));
             mainCamera.fieldOfView = Mathf.Lerp(transitionStartFieldOfView, previousFieldOfView, smoothT);
+            UpdateExitReconstruction(t);
             if (t >= 1f) CompleteExitRecall();
         }
 
-        private void HideOriginalTarget()
+        private void UpdateExitReconstruction(float normalizedTime)
         {
-            target.SetInteractionHighlight(false, null);
-            hiddenTargetRenderers = target.GetComponentsInChildren<Renderer>(true);
-            hiddenTargetRendererStates = new bool[hiddenTargetRenderers.Length];
-            for (int i = 0; i < hiddenTargetRenderers.Length; i++)
+            if (exitUsesWorldObject)
             {
-                hiddenTargetRendererStates[i] = hiddenTargetRenderers[i].enabled;
-                hiddenTargetRenderers[i].enabled = false;
+                float restore = EvaluatePhaseProgress(data.RevealCurve, normalizedTime, 0f, 1f);
+                targetDissolveVisual?.SetEffect(
+                    Mathf.Lerp(exitSourceDissolve, 0f, restore),
+                    Mathf.Lerp(exitSourceDesaturation, 0f, restore));
+                return;
             }
+
+            float colorFade = EvaluatePhaseProgress(
+                data.ColorFadeCurve, normalizedTime, 0f, data.ColorFadeEnd);
+            float dissolveOut = EvaluatePhaseProgress(
+                data.DissolveOutCurve, normalizedTime, data.DissolveOutStart, data.DissolveOutEnd);
+            previewDissolveVisual?.SetEffect(
+                Mathf.Lerp(exitSourceDissolve, 1f, dissolveOut),
+                Mathf.Lerp(exitSourceDesaturation, 1f, colorFade));
+
+            float switchPoint = Mathf.Lerp(data.DissolveOutEnd, data.RevealStart, 0.5f);
+            if (normalizedTime >= switchPoint) ActivateExitWorld();
+            if (!exitWorldActivated) return;
+
+            float reveal = EvaluatePhaseProgress(data.RevealCurve, normalizedTime, data.RevealStart, 1f);
+            targetDissolveVisual?.SetEffect(1f - reveal, 1f - reveal);
         }
 
-        private void RestoreOriginalTarget()
+        private void ActivateExitWorld()
         {
-            if (hiddenTargetRenderers != null && hiddenTargetRendererStates != null)
-            {
-                int count = Mathf.Min(hiddenTargetRenderers.Length, hiddenTargetRendererStates.Length);
-                for (int i = 0; i < count; i++)
-                    if (hiddenTargetRenderers[i] != null) hiddenTargetRenderers[i].enabled = hiddenTargetRendererStates[i];
-            }
-            hiddenTargetRenderers = null;
-            hiddenTargetRendererStates = null;
+            if (exitWorldActivated) return;
+            exitWorldActivated = true;
+            previewDissolveVisual?.SetEffect(1f, 1f);
+            previewDissolveVisual?.SetVisible(false);
+            targetDissolveVisual?.BeginTransition(true, 1f, 1f);
+        }
+
+        private void ReleaseDissolveVisuals()
+        {
+            previewDissolveVisual?.Dispose(false);
+            previewDissolveVisual = null;
+            targetDissolveVisual?.Dispose(true);
+            targetDissolveVisual = null;
+            entryPreviewActivated = false;
+            exitWorldActivated = false;
+            exitUsesWorldObject = false;
+            exitSourceDissolve = 0f;
+            exitSourceDesaturation = 0f;
         }
 
         private void HidePlayerVisuals()
@@ -500,9 +627,13 @@ namespace DetectiveGame.Recall
 
         private void HandlePeriodPointer()
         {
-            if (!pointerPressAction.WasPressedThisFrame()) return;
             int clicked = ui.GetPeriodAtScreenPosition(pointerPositionAction.ReadValue<Vector2>());
-            if (clicked >= 0) SelectAvailablePeriod(clicked);
+            if (clicked >= 0 && clicked != selectedAvailablePeriod)
+            {
+                selectedAvailablePeriod = clicked;
+                ui.UpdatePeriodSelection(selectedAvailablePeriod);
+            }
+            if (clicked >= 0 && pointerPressAction.WasPressedThisFrame()) SelectAvailablePeriod(clicked);
         }
 
         private void HandleTimelinePointer()
@@ -520,6 +651,15 @@ namespace DetectiveGame.Recall
         private void OnNext(InputAction.CallbackContext context) => MovePeriodSelection(1);
         private void OnSubmit(InputAction.CallbackContext context) => SelectAvailablePeriod(selectedAvailablePeriod);
 
+        private void OnPeriodDigit(InputAction.CallbackContext context)
+        {
+            if (State != SessionState.SelectingPeriod || context.control == null) return;
+            string controlName = context.control.name;
+            if (string.IsNullOrEmpty(controlName)) return;
+            char digit = controlName[controlName.Length - 1];
+            if (digit >= '1' && digit <= '9') TrySelectPeriodByNumber(digit - '0');
+        }
+
         private void MovePeriodSelection(int direction)
         {
             if (State != SessionState.SelectingPeriod || data == null) return;
@@ -529,7 +669,7 @@ namespace DetectiveGame.Recall
 
         private void EnableActions(bool enabled)
         {
-            InputAction[] actions = { playPauseAction, cancelAction, previousAction, nextAction, submitAction, pointerPositionAction, pointerPressAction };
+            InputAction[] actions = { playPauseAction, cancelAction, previousAction, nextAction, submitAction, periodDigitAction, pointerPositionAction, pointerPressAction };
             foreach (InputAction action in actions)
             {
                 if (enabled) action.Enable(); else action.Disable();

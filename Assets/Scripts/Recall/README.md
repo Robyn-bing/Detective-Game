@@ -3,17 +3,18 @@
 ## 已配置示例
 
 `Assets/Scenes/Test.unity` 中的 `Study_Blockout/03_Desk/Desk_Book` 已配置为可回溯物体。
-靠近并看向书本会显示 `[R] 回溯`，按 R 直接进入唯一的 `18:55–19:05` 回溯片段。
-预览会在约 1.35 秒内快速倒放到最早状态，然后可以按空格播放/暂停、拖动时间轴或按 Esc 退出。
+靠近并看向书本会显示 `[R] 回溯`。示例包含 `19:00–19:15` 左右移动和 `08:00–08:15` 上下移动两个片段；按 R 后会在书本旁显示时间选择框，可按数字键 1/2、小键盘 1/2 或鼠标选择。
+镜头移动时，现实中的书本会先褪色并溶解；完全隐藏后，预览书本会直接在该时间段第 0 秒的位置逐渐重现。时间轴不会倒退，也不会提前展示动画路径。重构完成后可以按空格播放/暂停、拖动时间轴或按 Esc 退出。
 
 示例资产位于：
 
 - 数据：`Assets/Recall/Data/Desk_Book_RecallData.asset`
-- 动画：`Assets/Recall/Animations/Desk_Book_1855_1905_LeftToRight.anim`
+- 动画：`Assets/Recall/Animations/Desk_Book_1900_1915_LeftToRight.anim`
+- 动画：`Assets/Recall/Animations/Desk_Book_0800_0815_UpDown.anim`
 - 预览 Prefab：`Assets/Recall/Prefabs/Desk_Book_RecallPreview.prefab`
 - 预览网格：`Assets/Recall/Meshes/Desk_Book_RecallPreviewMesh.asset`
 
-场景中的原书不会被移动。回溯系统会在原物体位置实例化预览 Prefab、暂时隐藏原物体，并继续渲染真实场景背景。MainCamera 会从玩家当前视角平滑移动到固定回溯视角，退出时再平滑返回玩家视角。进入回溯后玩家的视觉 Renderer 会暂时隐藏，因此第三人称身体不会挡住回溯物体；返回玩家视角后会按原状态恢复。
+场景中的原书不会被移动。回溯系统会在原物体位置实例化预览 Prefab，并通过溶解效果在现实物体与回溯预览之间切换，同时继续渲染真实场景背景。MainCamera 会从玩家当前视角平滑移动到固定回溯视角，退出时使用对称的溶解过渡返回现实物体和玩家视角。进入回溯后玩家的视觉 Renderer 会暂时隐藏，因此第三人称身体不会挡住回溯物体；返回玩家视角后会按原状态恢复。
 
 ## 为其他物体配置回溯
 
@@ -64,14 +65,15 @@ Object_RecallPreview       <- 动画根节点；位置动画应录在这里
 - Camera Entry Progress Curve：统一进入阶段中的镜头进度曲线。
 - Camera Return Transition Seconds：退出时固定镜头返回玩家视角的时间。
 - Background Color：保留字段；当前场景回溯模式会继续使用真实场景背景。
+- Memory Reconstruction Transition：控制褪色、溶解、隐藏切换点、重新显现曲线，以及溶解边缘颜色、宽度和噪声大小。
 - Periods：回溯时间段数组。
 
-每个 Period 配置：Label、开始/结束时分、Animation Clip、Synchronized Entry Seconds、Rewind Progress Curve、Playback Speed 和 Available。
-Available 关闭或 Animation Clip 为空的时间段不会显示。只有一个有效时间段时直接进入；两个及以上时自动出现选择页面。
+每个 Period 配置：稳定的 Period Id、Label、开始/结束时分、Animation Clip、Synchronized Entry Seconds、Playback Speed 和 Available。Period Id 会用于证据与存档记录；内容确定后不要随意修改。
+Available 关闭或 Animation Clip 为空的时间段不会显示。只有一个有效时间段时直接进入；两个及以上时会在物体旁显示时间选择框。
 
-`Synchronized Entry Seconds` 是镜头过渡和物体回到最早状态共用的总时长，两者会在同一帧开始并结束。`Camera Entry Progress Curve` 只控制镜头在这段时间内如何移动；`Rewind Progress Curve` 控制物体如何倒放。两条曲线的横轴使用相同的归一化时间，因此可以分别调整手感而不会失去同步。
+`Synchronized Entry Seconds` 是镜头过渡和物体记忆重构共用的总时长，两者会在同一帧开始并结束。`Camera Entry Progress Curve` 只控制镜头在这段时间内如何移动。物体在完全不可见的一帧被直接采样到所选 AnimationClip 的第 0 秒，因此不同时间段不需要拥有相同的末帧位置。
 
-`Rewind Progress Curve` 的纵轴是已经完成的倒放进度；曲线越陡，物体当时移动越快。默认三个关键点为 `(0,0)`、`(0.5,0.5)`、`(1,1)`，首尾切线较陡、中间切线较平，形成“快—慢—快”。系统会把曲线的第一个和最后一个关键点自动映射到统一进入阶段的起点与终点，因此移动曲线端点也不会破坏同步。在 Inspector 中点击曲线即可拖动关键点或修改切线；建议保持曲线单调上升，避免物体意外来回跳动。
+`Color Fade End` 控制褪色阶段结束点；`Dissolve Out Start/End` 控制现实物体的消失区间；`Reveal Start` 控制回溯预览开始显现的时机。所有时间点都是相对于 `Synchronized Entry Seconds` 的 0–1 比例。系统会自动保证消失结束早于重新显现，避免两个位置的物体同时出现在画面里。
 
 ### 4. 配置场景物体
 
@@ -87,11 +89,11 @@ Interaction Distance 控制提示出现距离；Prompt Screen Offset 控制悬�
 
 ## 多时间段
 
-在同一个 RecallObjectData 的 Periods 中增加元素即可。每段使用独立 AnimationClip，系统会自动显示时间选择页。
-方向键选择、Enter 确认，也支持鼠标点击。不要为同一个物体重复添加 RecallableObject。
+在同一个 RecallObjectData 的 Periods 中增加元素即可。每段使用独立 AnimationClip，系统会自动在 `[R] 回溯` 旁显示时间选择框。
+数组顺序对应数字键 1–9；同时支持小键盘、鼠标悬停/点击、方向键选择和 Enter 确认，Esc 取消。不要为同一个物体重复添加 RecallableObject。
 
 ## 回归测试
 
 在 Test 场景进入 Play Mode，执行：
 `Tools > Detective Game > Run Recall Smoke Tests (Play Mode)`。
-报告写入 `Temp/RecallTests/report.json`。测试会验证倒放、精确拖动采样、播放/暂停、唯一 MainCamera 和退出后的状态恢复。
+报告写入 `Temp/RecallTests/report.json`。测试会验证多时间段选择、数字键映射、鼠标点击区域、精确拖动采样、播放/暂停、唯一 MainCamera 和退出后的状态恢复。

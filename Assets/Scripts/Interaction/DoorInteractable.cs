@@ -1,4 +1,5 @@
 using System.Collections;
+using DetectiveGame.Player;
 using UnityEngine;
 
 namespace DetectiveGame.Interaction
@@ -20,14 +21,27 @@ namespace DetectiveGame.Interaction
             new Keyframe(0f, 0f, 0f, 0f),
             new Keyframe(1f, 1f, 0f, 0f));
 
+        [Header("Player Open Animation")]
+        [SerializeField, Tooltip("Checked: align the full-body player and animate the hand before opening. Unchecked: only play the door's mechanical animation.")]
+        private bool usePlayerOpenAnimation = true;
+        [SerializeField] private Transform outsideStandPoint;
+        [SerializeField] private Transform insideStandPoint;
+        [SerializeField] private Transform outsideHandTarget;
+        [SerializeField] private Transform insideHandTarget;
+
         private Coroutine animationRoutine;
         private bool isOpen;
         private bool isAnimating;
+        private bool characterInteractionActive;
 
         public override string PromptText => isOpen ? "[E] 关门" : "[E] 开门";
-        public override bool IsInteractionAvailable => base.IsInteractionAvailable && !isAnimating;
+        public override bool IsInteractionAvailable =>
+            base.IsInteractionAvailable && !isAnimating && !characterInteractionActive;
         public bool IsOpen => isOpen;
         public bool IsAnimating => isAnimating;
+        public bool CharacterInteractionActive => characterInteractionActive;
+        public float AnimationDuration => animationDuration;
+        public bool UsePlayerOpenAnimation => usePlayerOpenAnimation;
 
         private void Awake()
         {
@@ -42,12 +56,50 @@ namespace DetectiveGame.Interaction
             if (animationRoutine != null) StopCoroutine(animationRoutine);
             animationRoutine = null;
             isAnimating = false;
+            characterInteractionActive = false;
         }
 
         public override void Interact(Transform interactor)
         {
             if (!IsInteractionAvailable) return;
+
+            if (usePlayerOpenAnimation && !isOpen && interactor != null &&
+                interactor.TryGetComponent(out PlayerDoorInteractionController playerAnimation))
+            {
+                characterInteractionActive = true;
+                if (playerAnimation.TryOpenDoor(this)) return;
+                characterInteractionActive = false;
+            }
+
             SetOpen(!isOpen);
+        }
+
+        public void GetOpenInteractionTargets(
+            Vector3 playerPosition,
+            out Transform standPoint,
+            out Transform handTarget)
+        {
+            bool useOutside = insideStandPoint == null ||
+                              (outsideStandPoint != null &&
+                               (playerPosition - outsideStandPoint.position).sqrMagnitude <=
+                               (playerPosition - insideStandPoint.position).sqrMagnitude);
+            standPoint = useOutside ? outsideStandPoint : insideStandPoint;
+            handTarget = useOutside ? outsideHandTarget : insideHandTarget;
+
+            if (standPoint == null)
+                standPoint = useOutside ? insideStandPoint : outsideStandPoint;
+            if (handTarget == null)
+                handTarget = useOutside ? insideHandTarget : outsideHandTarget;
+        }
+
+        public void BeginOpenMotionFromCharacter()
+        {
+            if (!isOpen) SetOpen(true);
+        }
+
+        public void CompleteCharacterInteraction()
+        {
+            characterInteractionActive = false;
         }
 
         public void SetOpen(bool open, bool instant = false)

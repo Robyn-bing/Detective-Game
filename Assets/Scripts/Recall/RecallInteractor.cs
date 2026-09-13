@@ -42,6 +42,8 @@ namespace DetectiveGame.Recall
 
         private void Update()
         {
+            if (recallSession != null && recallSession.State == RecallSessionController.SessionState.SelectingPeriod)
+                return;
             if (recallSession == null || recallSession.IsActive || viewCamera == null ||
                 DialogueController.AnyModalOpen)
             {

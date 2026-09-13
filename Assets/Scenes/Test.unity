@@ -1625,6 +1625,8 @@ Transform:
   - {fileID: 1113670734}
   - {fileID: 1310809216}
   - {fileID: 1074402469}
+  - {fileID: 714984212}
+  - {fileID: 1410614663}
   m_Father: {fileID: 2102008740}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!43 &114349597
@@ -12262,6 +12264,37 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!1 &714984211
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 714984212}
+  m_Layer: 0
+  m_Name: PlayerHandTarget_Outside
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &714984212
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 714984211}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.36997944, y: -0.8139334, z: 0.21955058, w: -0.3904169}
+  m_LocalPosition: {x: 1.3899999, y: 1.06, z: -0.13499966}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 106669837}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &757127721
 GameObject:
   m_ObjectHideFlags: 0
@@ -15586,6 +15619,68 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!1 &920301075
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 920301076}
+  m_Layer: 0
+  m_Name: Door_Open_InsideStand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &920301076
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 920301075}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 1, z: -0, w: -0.00000004371139}
+  m_LocalPosition: {x: 0.91497993, y: -0.12, z: 0.35000038}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2102008740}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &926329996
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 926329997}
+  m_Layer: 0
+  m_Name: Door_Open_OutsideStand
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &926329997
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 926329996}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.23497987, y: -0.12, z: -0.5500002}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 2102008740}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &944679742
 GameObject:
   m_ObjectHideFlags: 0
@@ -15894,6 +15989,27 @@ MeshRenderer:
   m_SortingOrder: 0
   m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!143 &954782692 stripped
+CharacterController:
+  m_CorrespondingSourceObject: {fileID: 4416926081852918491, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  m_PrefabInstance: {fileID: 1068126280}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &954782693 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4416926081852918490, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  m_PrefabInstance: {fileID: 1068126280}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1068126282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26e54e5a728a9234ab24fcf1460ed8a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!95 &954782694 stripped
+Animator:
+  m_CorrespondingSourceObject: {fileID: 6982812146204527121, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+  m_PrefabInstance: {fileID: 1068126280}
+  m_PrefabAsset: {fileID: 0}
 --- !u!43 &957869460
 Mesh:
   m_ObjectHideFlags: 0
@@ -17888,6 +18004,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 4416926081852918481, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
       insertIndex: -1
       addedObject: {fileID: 1999000002}
+    - targetCorrespondingSourceObject: {fileID: 4416926081852918481, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1999000003}
   m_SourcePrefab: {fileID: 100100000, guid: 64dce48905ffd9b4293e595fa6941544, type: 3}
 --- !u!137 &1068126281 stripped
 SkinnedMeshRenderer:
@@ -18900,6 +19019,7 @@ MonoBehaviour:
   evidenceService: {fileID: 0}
   previewLayer: 2
   previewNearClip: 0.03
+  dissolveShader: {fileID: 4800000, guid: dbf6b20a04262534097455053158ea93, type: 3}
 --- !u!114 &1112245014
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18912,6 +19032,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1e28ecfc1705674c83827e94f584a77, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Recall.RecallRuntimeUI
+  periodSelectionOffset: {x: 14, y: 0}
+  periodSelectionWidth: 500
+  periodEntryHeight: 62
+  periodSelectionOpenSeconds: 0.16
 --- !u!4 &1112245015
 Transform:
   m_ObjectHideFlags: 0
@@ -27470,6 +27594,37 @@ Mesh:
       - serializedVersion: 1
         m_IndexStart: 0
         m_IndexCount: 0
+--- !u!1 &1410614662
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1410614663}
+  m_Layer: 0
+  m_Name: PlayerHandTarget_Inside
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1410614663
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1410614662}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.21955056, y: -0.39041686, z: -0.36997944, w: 0.8139334}
+  m_LocalPosition: {x: 1.3899999, y: 1.06, z: 0.13499984}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 106669837}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1429758709
 GameObject:
   m_ObjectHideFlags: 0
@@ -41195,6 +41350,11 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  usePlayerOpenAnimation: 1
+  outsideStandPoint: {fileID: 926329997}
+  insideStandPoint: {fileID: 920301076}
+  outsideHandTarget: {fileID: 714984212}
+  insideHandTarget: {fileID: 1410614663}
 --- !u!114 &1999000002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -41213,6 +41373,106 @@ MonoBehaviour:
   visibilityLayers:
     serializedVersion: 2
     m_Bits: 4294967291
+--- !u!114 &1999000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1068126282}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c916fdb3460794a4abebc33ef9ef0f01, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Player.PlayerDoorInteractionController
+  animator: {fileID: 954782694}
+  movement: {fileID: 954782693}
+  characterController: {fileID: 954782692}
+  inputs: {fileID: 1068126284}
+  viewController: {fileID: 1068126283}
+  playerInteractor: {fileID: 1999000002}
+  alignDuration: 0.28
+  reachDuration: 0.42
+  gripPause: 0.08
+  handleFollowDuration: 0.22
+  releaseDuration: 0.24
+  alignCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reachCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  releaseCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  handPositionOffset: {x: 0, y: 0, z: 0}
+  handRotationOffset: {x: 0, y: 0, z: 0}
+  handRotationWeight: 0.75
+  elbowHintLocalPosition: {x: 0.52, y: 1.12, z: 0.2}
+  elbowHintWeight: 0.65
 --- !u!114 &1999000010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -41240,6 +41500,74 @@ MonoBehaviour:
   backgroundBlurRadius: 3.5
   backgroundBlurTint: {r: 0.12, g: 0.16, b: 0.2, a: 0.72}
   wheelRadius: 295
+  wheelInnerRadius: 118
+  wheelSegmentGap: 5
+  wheelCenterDeadZone: 105
+  wheelOpenDuration: 0.24
+  wheelCloseDuration: 0.16
+  wheelStartScale: 0.72
+  wheelCloseScale: 0.87
+  wheelSegmentStagger: 0.025
+  wheelHoverOffset: 14
+  wheelHoverScale: 1.08
+  wheelHoverDuration: 0.1
+  wheelOpenScaleCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 0.72
+      value: 1.07
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  wheelCloseCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!114 &1999000012
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -42898,6 +43226,8 @@ Transform:
   - {fileID: 1034962576}
   - {fileID: 1269731738}
   - {fileID: 106669837}
+  - {fileID: 926329997}
+  - {fileID: 920301076}
   m_Father: {fileID: 1327257785}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!43 &2113187661

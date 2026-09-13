@@ -47,12 +47,24 @@ namespace DetectiveGame.Evidence
             RecallObjectData sourceRecallData,
             int periodIndex)
         {
+            RecallPeriod period = sourceRecallData != null && periodIndex >= 0 && periodIndex < sourceRecallData.PeriodCount
+                ? sourceRecallData.GetPeriod(periodIndex)
+                : null;
+            string periodId = period != null ? period.PeriodId : periodIndex.ToString();
+            return RecordReviewedEvidence(definition, sourceRecallData, periodId);
+        }
+
+        public bool RecordReviewedEvidence(
+            EvidenceDefinition definition,
+            RecallObjectData sourceRecallData,
+            string periodId)
+        {
             if (definition == null || string.IsNullOrWhiteSpace(definition.EvidenceId)) return false;
 
             string id = definition.EvidenceId;
             definitions[id] = definition;
             if (sourceRecallData != null) recallData[id] = sourceRecallData;
-            reviewedPeriods.Add($"{id}:{periodIndex}");
+            if (!string.IsNullOrWhiteSpace(periodId)) reviewedPeriods.Add($"{id}:{periodId}");
 
             bool isNew = !Contains(id);
             if (isNew)
@@ -79,7 +91,15 @@ namespace DetectiveGame.Evidence
         }
 
         public bool IsPeriodReviewed(string evidenceId, int periodIndex)
-            => reviewedPeriods.Contains($"{evidenceId}:{periodIndex}");
+        {
+            if (recallData.TryGetValue(evidenceId, out RecallObjectData data) &&
+                periodIndex >= 0 && periodIndex < data.PeriodCount)
+                return IsPeriodReviewed(evidenceId, data.GetPeriod(periodIndex).PeriodId);
+            return reviewedPeriods.Contains($"{evidenceId}:{periodIndex}");
+        }
+
+        public bool IsPeriodReviewed(string evidenceId, string periodId)
+            => !string.IsNullOrWhiteSpace(periodId) && reviewedPeriods.Contains($"{evidenceId}:{periodId}");
 
         public void SetSelectedChoice(EvidenceDefinition definition, EvidenceMomentDefinition moment, string choiceId)
         {

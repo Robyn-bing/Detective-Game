@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Desk_Book_RecallData
   m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Recall.RecallObjectData
   displayName: "\u4E66\u684C\u4E0A\u7684\u4E66\u672C"
-  description: "\u6F14\u793A\u56DE\u6EAF\uFF1A\u4E66\u672C\u5728 18:55 \u81F3 19:05
-    \u4E4B\u95F4\u5DE6\u53F3\u79FB\u52A8\u3002"
+  description: "\u6D4B\u8BD5\u7528\u4E66\u672C\u56DE\u6EAF\uFF1A19:00\u201319:15
+    \u5DE6\u53F3\u79FB\u52A8\uFF0C08:00\u201308:15 \u4E0A\u4E0B\u79FB\u52A8\u3002"
   previewPrefab: {fileID: 2321406169299206546, guid: d77dd10ecb0c1774e9516f0b3ab5adc3, type: 3}
   previewCameraEuler: {x: 38, y: 0, z: 0}
   previewFieldOfView: 48
@@ -45,15 +45,139 @@ MonoBehaviour:
     m_RotationOrder: 4
   cameraReturnTransitionSeconds: 0.75
   backgroundColor: {r: 0.055, g: 0.035, b: 0.022, a: 1}
+  colorFadeEnd: 0.2
+  dissolveOutStart: 0.12
+  dissolveOutEnd: 0.46
+  revealStart: 0.54
+  colorFadeCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  dissolveOutCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  revealCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  dissolveEdgeColor: {r: 0.58, g: 0.9, b: 1.15, a: 1}
+  dissolveEdgeWidth: 0.07
+  dissolveNoiseScale: 5
   periods:
-  - label: "\u4E66\u672C\u79FB\u52A8\u7684\u5341\u5206\u949F"
+  - periodId: book_1900_1915
+    label: "\u4E66\u672C\u5DE6\u53F3\u79FB\u52A8"
     startHour: 19
     startMinute: 0
     endHour: 19
     endMinute: 15
     animationClip: {fileID: 7400000, guid: 2143fcbb40bd2c5469383b9bb6b782eb, type: 2}
     synchronizedEntrySeconds: 1.35
-    rewindProgressCurve:
+    legacyRewindProgressCurve:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 2.2
+        outSlope: 2.2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.30833435
+        value: 0.48413086
+        inSlope: 0.25
+        outSlope: 0.25
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.56111145
+        value: 0.99682236
+        inSlope: 2.2
+        outSlope: 2.2
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    playbackSpeed: 1
+    available: 1
+    unlockId:
+  - periodId: book_0800_0815
+    label: "\u4E66\u672C\u4E0A\u4E0B\u79FB\u52A8"
+    startHour: 8
+    startMinute: 0
+    endHour: 8
+    endMinute: 15
+    animationClip: {fileID: 7400000, guid: 2f3ce768192cc5a4084961cc492b2ce3, type: 2}
+    synchronizedEntrySeconds: 1.35
+    legacyRewindProgressCurve:
       serializedVersion: 2
       m_Curve:
       - serializedVersion: 3

@@ -51,6 +51,7 @@ namespace DetectiveGame.Player
         private bool initialized;
         private bool modeApplied;
         private bool appliedFirstPerson;
+        private bool interactionLocked;
         private float yaw;
         private float pitch;
 
@@ -61,6 +62,14 @@ namespace DetectiveGame.Player
         }
 
         public bool IsFirstPerson => initialized && modeApplied && appliedFirstPerson;
+
+        public void SetInteractionLock(bool locked)
+        {
+            if (interactionLocked == locked) return;
+            interactionLocked = locked;
+            if (input != null) input.LookInput(Vector2.zero);
+            if (!locked) yaw = transform.eulerAngles.y;
+        }
 
         private void Awake()
         {
@@ -92,6 +101,7 @@ namespace DetectiveGame.Player
             if (!initialized) return;
             if (!modeApplied || useFirstPerson != appliedFirstPerson) ApplyMode(false);
             if (!appliedFirstPerson) return;
+            if (interactionLocked) return;
 
             if (!movement.LockCameraPosition && input.cursorInputForLook)
             {
@@ -108,6 +118,7 @@ namespace DetectiveGame.Player
         private void LateUpdate()
         {
             if (!IsFirstPerson) return;
+            if (interactionLocked) yaw = transform.eulerAngles.y;
             UpdateFirstPersonCamera();
             for (int i = 0; i < firstPersonBodyMesh.blendShapeCount; i++)
                 firstPersonBody.SetBlendShapeWeight(i, fullBodyRenderer.GetBlendShapeWeight(i));
