@@ -19,10 +19,19 @@ Shader "DetectiveGame/Recall Outline"
         {
             Name "RecallOutline"
             Tags { "LightMode" = "SRPDefaultUnlit" }
-            Cull Front
+            Cull Off
             ZWrite Off
             ZTest LEqual
             Blend SrcAlpha OneMinusSrcAlpha
+            // URP reserves stencil bits 0-3 for user shaders. Blend a highlighted object once per pixel.
+            Stencil
+            {
+                Ref 2
+                ReadMask 3
+                WriteMask 2
+                Comp Greater
+                Pass Replace
+            }
 
             HLSLPROGRAM
             #pragma vertex Vert
@@ -43,13 +52,16 @@ Shader "DetectiveGame/Recall Outline"
             CBUFFER_START(UnityPerMaterial)
                 half4 _OutlineColor;
                 float _OutlineWidth;
+                float4 _OutlineOffset;
             CBUFFER_END
 
             Varyings Vert(Attributes input)
             {
                 Varyings output;
-                float3 expanded = input.positionOS.xyz + normalize(input.normalOS) * _OutlineWidth;
-                output.positionCS = TransformObjectToHClip(expanded);
+                float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
+                float3 normalWS = normalize(TransformObjectToWorldNormal(input.normalOS));
+                output.positionCS = TransformWorldToHClip(positionWS);
+                output.positionCS.xy += _OutlineOffset.xy * (4.0 / _ScaledScreenParams.xy) * output.positionCS.w;
                 return output;
             }
 
@@ -61,3 +73,5 @@ Shader "DetectiveGame/Recall Outline"
         }
     }
 }
+
+

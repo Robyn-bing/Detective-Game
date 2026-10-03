@@ -6,7 +6,7 @@ using UnityEngine.UI;
 namespace DetectiveGame.Recall
 {
     [DisallowMultipleComponent]
-    public sealed class RecallRuntimeUI : MonoBehaviour
+    public sealed partial class RecallRuntimeUI : MonoBehaviour
     {
         [Header("World Period Selection")]
         [SerializeField] private Vector2 periodSelectionOffset = new Vector2(14f, 0f);
@@ -16,46 +16,47 @@ namespace DetectiveGame.Recall
 
         private readonly List<RectTransform> periodRects = new List<RectTransform>();
         private readonly List<Image> periodBackgrounds = new List<Image>();
-        private Font font;
-        private GameObject canvasObject;
-        private RectTransform canvasRect;
-        private GameObject promptPanel;
-        private RectTransform promptRect;
-        private Text promptText;
+        [SerializeField] private Font font;
+        [SerializeField] private GameObject canvasObject;
+        [SerializeField] private RectTransform canvasRect;
+        [SerializeField] private GameObject promptPanel;
+        [SerializeField] private RectTransform promptRect;
+        [SerializeField] private Text promptText;
         private RecallableObject promptTarget;
         private Camera promptCamera;
-        private GameObject recallPanel;
-        private GameObject selectionPanel;
-        private RectTransform selectionRect;
-        private CanvasGroup selectionCanvasGroup;
+        [SerializeField] private GameObject recallPanel;
+        [SerializeField] private GameObject selectionPanel;
+        [SerializeField] private RectTransform selectionRect;
+        [SerializeField] private CanvasGroup selectionCanvasGroup;
         private Coroutine selectionAnimation;
         private bool worldPromptRequested;
         private bool periodSelectionRequested;
-        private GameObject playbackControlsRoot;
-        private Text selectionTitle;
-        private Text selectionHint;
-        private Text titleText;
-        private Text statusText;
-        private Text startTimeText;
-        private Text endTimeText;
-        private Text currentTimeText;
-        private Text instructionText;
-        private RectTransform timelineTrack;
-        private RectTransform timelineFill;
-        private RectTransform timelineHandle;
+        [SerializeField] private GameObject playbackControlsRoot;
+        [SerializeField] private Text selectionTitle;
+        [SerializeField] private Text selectionHint;
+        [SerializeField] private Text titleText;
+        [SerializeField] private Text statusText;
+        [SerializeField] private Text startTimeText;
+        [SerializeField] private Text endTimeText;
+        [SerializeField] private Text currentTimeText;
+        [SerializeField] private Text instructionText;
+        [SerializeField] private RectTransform timelineTrack;
+        [SerializeField] private RectTransform timelineFill;
+        [SerializeField] private RectTransform timelineHandle;
 
         private void Awake()
         {
             promptCamera = Camera.main;
-            BuildUI();
+            if (useSceneUI) BindSceneUI();
+            else BuildUI();
             HideRecall();
             SetWorldPrompt(null);
         }
 
         private void OnDestroy()
         {
-            if (canvasObject != null) Destroy(canvasObject);
-            if (font != null) Destroy(font);
+            if (!useSceneUI && canvasObject != null) Destroy(canvasObject);
+            if (!useSceneUI && font != null) Destroy(font);
         }
 
         private void LateUpdate()
@@ -104,7 +105,7 @@ namespace DetectiveGame.Recall
             if (recallable != null) promptTarget = recallable;
             else if (!periodSelectionRequested) promptTarget = null;
             promptPanel.SetActive(worldPromptRequested);
-            if (worldPromptRequested) promptText.text = "[R] 回溯";
+            if (worldPromptRequested && !useSceneUI) promptText.text = "[R] 回溯";
         }
 
         public void ShowPeriodSelection(RecallObjectData data, RecallableObject target, int selectedIndex)
@@ -117,6 +118,7 @@ namespace DetectiveGame.Recall
             playbackControlsRoot.SetActive(false);
             ClearPeriodEntries();
             selectionTitle.text = "选择回溯时间";
+            if (useSceneUI) { ShowScenePeriods(data, selectedIndex); return; }
             int count = data.AvailablePeriodCount;
             float panelHeight = 54f + count * periodEntryHeight + 38f;
             selectionRect.sizeDelta = new Vector2(periodSelectionWidth, panelHeight);
@@ -134,7 +136,7 @@ namespace DetectiveGame.Recall
                 background.raycastTarget = false;
                 Text label = CreateText(entry.transform, period.Label, 21, TextAnchor.MiddleLeft, Color.white);
                 Stretch(label.rectTransform, 18f, 6f, 18f, 6f);
-                label.text = $"[{available + 1}]  {period.StartTime} — {period.EndTime}    {period.Label}";
+                label.text = $"[{available + 1}]  {period.TimeRange}    {period.Label}";
                 periodRects.Add(rect);
                 periodBackgrounds.Add(background);
             }
@@ -161,8 +163,8 @@ namespace DetectiveGame.Recall
         {
             for (int i = 0; i < periodBackgrounds.Count; i++)
                 periodBackgrounds[i].color = i == selectedIndex
-                    ? new Color(0.08f, 0.55f, 0.64f, 0.92f)
-                    : new Color(0.1f, 0.08f, 0.065f, 0.9f);
+                    ? (useSceneUI ? selectedPeriodColor : new Color(0.08f, 0.55f, 0.64f, 0.92f))
+                    : (useSceneUI ? periodTemplate.color : new Color(0.1f, 0.08f, 0.065f, 0.9f));
         }
 
         public int GetPeriodAtScreenPosition(Vector2 screenPosition)
@@ -177,10 +179,10 @@ namespace DetectiveGame.Recall
             recallPanel.SetActive(true);
             HidePeriodSelection();
             playbackControlsRoot.SetActive(true);
-            titleText.text = data.DisplayName;
+            titleText.text = $"{data.DisplayName}    {period.TimeRange}";
             startTimeText.text = period.StartTime;
             endTimeText.text = period.EndTime;
-            instructionText.text = "空格：播放 / 暂停    拖动时间轴：查看状态    Esc：退出回溯";
+            if (!useSceneUI) instructionText.text = "空格：播放 / 暂停    拖动时间轴：查看状态    Esc：退出回溯";
         }
 
         public void ShowReconstruction(RecallObjectData data)
@@ -329,7 +331,7 @@ namespace DetectiveGame.Recall
         private void ClearPeriodEntries()
         {
             foreach (RectTransform rect in periodRects)
-                if (rect != null) Destroy(rect.gameObject);
+                if (rect != null) { rect.gameObject.SetActive(false); Destroy(rect.gameObject); }
             periodRects.Clear();
             periodBackgrounds.Clear();
         }

@@ -12,8 +12,15 @@ using UnityEngine.UI;
 namespace DetectiveGame.Dialogue
 {
     [DisallowMultipleComponent]
-    public sealed class DialogueRuntimeUI : MonoBehaviour
+    public sealed partial class DialogueRuntimeUI : MonoBehaviour
     {
+        [Header("Disabled Choices")]
+        [SerializeField] private Color disabledChoiceTextColor = new Color(.38f, .38f, .38f, 1f);
+        [SerializeField] private Color disabledChoiceBackground = new Color(.16f, .16f, .16f, 1f);
+        [Header("Inner Thought")]
+        [SerializeField] private Color innerThoughtColor = new Color(0.72f, 0.78f, 0.85f, 1f);
+        [SerializeField] private string innerThoughtSuffix = "（心声）";
+        [SerializeField] private bool italicInnerThought = true;
         [Header("Investigation Wheel")]
         [SerializeField, Range(0f, 8f)] private float backgroundBlurRadius = 3.5f;
         [SerializeField] private Color backgroundBlurTint = new Color(0.12f, 0.16f, 0.2f, 0.72f);
@@ -40,55 +47,137 @@ namespace DetectiveGame.Dialogue
 
         private readonly List<GameObject> choiceObjects = new List<GameObject>();
         private readonly List<GameObject> ownedObjects = new List<GameObject>();
-        private readonly List<WheelItemView> wheelItems = new List<WheelItemView>();
+        [SerializeField] private List<WheelItemView> wheelItems = new List<WheelItemView>();
 
         private DialogueController controller;
         private InvestigationKnowledgeService knowledge;
         private InvestigationDatabase database;
-        private Font font;
+        [SerializeField] private Font font;
         private bool ownsFont;
-        private GameObject canvasObject;
-        private GameObject persistentHud;
-        private GameObject dialogueLogButtonObject;
-        private GameObject wheelRoot;
-        private CanvasGroup wheelCanvasGroup;
-        private RectTransform wheelContainer;
-        private Text wheelCenterText;
+        [SerializeField] private GameObject canvasObject;
+        [SerializeField] private GameObject persistentHud;
+        [SerializeField] private GameObject dialogueLogButtonObject;
+        [SerializeField] private GameObject wheelRoot;
+        [SerializeField] private CanvasGroup wheelCanvasGroup;
+        [SerializeField] private RectTransform wheelContainer;
+        [SerializeField] private Text wheelCenterText;
         private Coroutine wheelTransition;
         private bool wheelInteractive;
         private bool wheelClosing;
         private int selectedWheelIndex = -1;
-        private GameObject dialogueRoot;
-        private GameObject choiceRoot;
-        private RectTransform choiceContainer;
-        private GameObject boardRoot;
-        private GameObject logRoot;
-        private GameObject toastRoot;
-        private Text toastText;
-        private Material blurMaterial;
-        private Text speakerText;
-        private Text dialogueText;
-        private Image portraitImage;
-        private Text portraitPlaceholder;
-        private Text logText;
-        private Text edwardNode;
-        private Text margaretNode;
-        private Text jamesNode;
-        private Text peterNode;
-        private Text relationshipEvidence;
-        private Text actionEvidence;
-        private Text motiveEvidence;
-        private Text timePeriodEvidence;
-        private GameObject spouseConnection;
-        private GameObject partnerConnection;
-        private GameObject superiorConnection;
-        private GameObject spouseLabel;
-        private GameObject partnerLabel;
-        private GameObject superiorLabel;
+        [SerializeField] private GameObject dialogueRoot;
+        [SerializeField] private GameObject choiceRoot;
+        [SerializeField] private RectTransform choiceContainer;
+        [SerializeField] private GameObject boardRoot;
+        [SerializeField] private GameObject logRoot;
+        [SerializeField] private GameObject toastRoot;
+        [SerializeField] private Text toastText;
+        [SerializeField] private Material blurMaterial;
+        [SerializeField] private Text speakerText;
+        [SerializeField] private Text dialogueText;
+        [SerializeField] private Image portraitImage;
+        [SerializeField] private Text portraitPlaceholder;
+        [SerializeField] private Text logText;
+        [SerializeField] private Text edwardNode;
+        [SerializeField] private Text margaretNode;
+        [SerializeField] private Text jamesNode;
+        [SerializeField] private Text peterNode;
+        [SerializeField] private Text relationshipEvidence;
+        [SerializeField] private Text actionEvidence;
+        [SerializeField] private Text motiveEvidence;
+        [SerializeField] private Text timePeriodEvidence;
+        [SerializeField] private GameObject spouseConnection;
+        [SerializeField] private GameObject partnerConnection;
+        [SerializeField] private GameObject superiorConnection;
+        [SerializeField] private GameObject spouseLabel;
+        [SerializeField] private GameObject partnerLabel;
+        [SerializeField] private GameObject superiorLabel;
         private bool dialogueVisible;
         private bool choicesVisible;
         private float toastRemaining;
+        [SerializeField] private GameObject notebookNavigation;
+        [SerializeField] private Button testimonyTab;
+        [SerializeField] private Button evidenceTab;
+        [SerializeField] private GameObject pauseHoldRoot;
+        [SerializeField] private RectTransform pauseHoldFill;
+        [SerializeField] private Text investigationHint;
+        private bool notebookEnabled;
+        private Coroutine wheelClickFeedback;
+        private string WheelTitle => notebookEnabled ? "暂停菜单" : "调查菜单";
 
+        public void ConfigureCaseNotebook(bool enabled)
+        {
+            notebookEnabled = enabled;
+            if (useSceneUI) return;
+            investigationHint.text = enabled ? "[Tab] 案件笔记\n<size=18>长按 [Esc] 暂停</size>" : "[Tab]  调查菜单";
+            if (!enabled) return;
+            InvestigationMenuOption[] options = { InvestigationMenuOption.Save, InvestigationMenuOption.QuickSave,
+                InvestigationMenuOption.Hint, InvestigationMenuOption.Settings, InvestigationMenuOption.ReturnToTitle };
+            string[] labels = { "存档", "快速存档", "提示", "设置", "返回标题" };
+            string[] icons = { "存", "快", "?", "设", "返" };
+            for (int i = 0; i < wheelItems.Count; i++)
+            {
+                wheelItems[i].Option = options[i];
+                wheelItems[i].Label = labels[i];
+                wheelItems[i].Caption.text = labels[i];
+                wheelItems[i].Icon.text = icons[i];
+            }
+            RectTransform board = boardRoot.GetComponent<RectTransform>();
+            board.offsetMin = new Vector2(180f, 0f);
+            boardRoot.transform.Find("Title").GetComponent<Text>().text = "案件笔记 · 证言";
+            boardRoot.transform.Find("Graph").localScale = Vector3.one * 0.88f;
+            BuildNotebookNavigation();
+        }
+
+        public void ShowNotebookNavigation(bool visible, bool evidence)
+        {
+            if (notebookNavigation == null) return;
+            notebookNavigation.SetActive(visible);
+            SetNotebookTabColor(testimonyTab, !evidence);
+            SetNotebookTabColor(evidenceTab, evidence);
+            if (visible && EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+        }
+
+        private void SetNotebookTabColor(Button button, bool selected)
+        {
+            button.GetComponent<Image>().color = Color.white;
+            ColorBlock colors = button.colors;
+            colors.normalColor = selected ? notebookSelectedColor : notebookNormalColor;
+            colors.highlightedColor = Color.Lerp(colors.normalColor, Paper, .15f);
+            colors.selectedColor = colors.normalColor;
+            colors.pressedColor = Color.Lerp(colors.normalColor, Color.black, .2f);
+            button.colors = colors;
+        }
+
+        public void SetPauseHoldProgress(float progress, bool visible)
+        {
+            if (pauseHoldRoot == null) return;
+            pauseHoldRoot.SetActive(visible);
+            pauseHoldFill.anchorMax = new Vector2(Mathf.Clamp01(progress), 1f);
+        }
+
+        private void BuildNotebookNavigation()
+        {
+            notebookNavigation = CreateRectObject("Case Notebook Navigation", canvasObject.transform).gameObject;
+            StretchFull(notebookNavigation.GetComponent<RectTransform>());
+            Canvas navigationCanvas = notebookNavigation.AddComponent<Canvas>();
+            navigationCanvas.overrideSorting = true;
+            navigationCanvas.sortingOrder = 5200;
+            notebookNavigation.AddComponent<GraphicRaycaster>();
+            GameObject rail = CreatePanel(notebookNavigation.transform, "Notebook Sidebar", new Color(.025f, .025f, .03f, 1f));
+            RectTransform railRect = rail.GetComponent<RectTransform>();
+            railRect.anchorMin = Vector2.zero; railRect.anchorMax = Vector2.up;
+            railRect.offsetMin = Vector2.zero; railRect.offsetMax = new Vector2(180f, 0f);
+            testimonyTab = CreateButton(notebookNavigation.transform, "Testimony Tab", "证言", new Vector2(136f, 56f), Accent, Paper, 27);
+            evidenceTab = CreateButton(notebookNavigation.transform, "Evidence Tab", "物证", new Vector2(136f, 56f), InkBlack, Paper, 27);
+            SetRect(testimonyTab.GetComponent<RectTransform>(), Vector2.up, Vector2.up, new Vector2(24f, -30f), new Vector2(136f, 56f), Vector2.up);
+            SetRect(evidenceTab.GetComponent<RectTransform>(), Vector2.up, Vector2.up, new Vector2(24f, -98f), new Vector2(136f, 56f), Vector2.up);
+            testimonyTab.onClick.AddListener(() => controller.ShowNotebookPage(false));
+            evidenceTab.onClick.AddListener(() => controller.ShowNotebookPage(true));
+            notebookNavigation.SetActive(false);
+        }
+
+        [Serializable]
         private sealed class WheelItemView
         {
             public InvestigationMenuOption Option;
@@ -105,7 +194,8 @@ namespace DetectiveGame.Dialogue
         private void Awake()
         {
             EnsureEventSystem();
-            BuildUI();
+            if (useSceneUI) BindSceneUI();
+            else BuildUI();
         }
 
         private void Update()
@@ -122,9 +212,9 @@ namespace DetectiveGame.Dialogue
         private void OnDestroy()
         {
             if (knowledge != null) knowledge.KnowledgeChanged -= RefreshBoard;
-            if (canvasObject != null) Destroy(canvasObject);
-            if (blurMaterial != null) Destroy(blurMaterial);
-            if (ownsFont && font != null) Destroy(font);
+            if (!useSceneUI && canvasObject != null) Destroy(canvasObject);
+            if (!useSceneUI && blurMaterial != null) Destroy(blurMaterial);
+            if (!useSceneUI && ownsFont && font != null) Destroy(font);
         }
 
         public void Initialize(
@@ -198,16 +288,20 @@ namespace DetectiveGame.Dialogue
         {
             dialogueVisible = false;
             choicesVisible = false;
+            if (dialogueRoot == null) return;
             dialogueRoot.SetActive(false);
             choiceRoot.SetActive(false);
             dialogueLogButtonObject.SetActive(false);
             ClearChoices();
         }
 
-        public void ShowLine(string speakerName, Sprite portrait, string text)
+        public void ShowLine(string speakerName, Sprite portrait, string text, DialogueLineType type = DialogueLineType.Dialogue)
         {
-            speakerText.text = speakerName;
+            bool thought = type == DialogueLineType.InnerThought;
+            speakerText.text = speakerName + (thought ? innerThoughtSuffix : "");
             dialogueText.text = text;
+            dialogueText.color = thought ? innerThoughtColor : (useSceneUI ? dialogueNormalColor : Paper);
+            dialogueText.fontStyle = thought && italicInnerThought ? FontStyle.Italic : FontStyle.Normal;
             portraitImage.sprite = portrait;
             portraitImage.color = portrait == null ? new Color(0.14f, 0.14f, 0.16f, 1f) : Color.white;
             portraitPlaceholder.gameObject.SetActive(portrait == null);
@@ -215,36 +309,68 @@ namespace DetectiveGame.Dialogue
 
         public void ShowChoices(IReadOnlyList<string> labels, Action<int> onSelected)
         {
+            var options = new List<DialogueChoiceOption>();
+            foreach (string label in labels) options.Add(new DialogueChoiceOption(label, true));
+            ShowChoices(options, onSelected);
+        }
+
+        public void ShowChoices(IReadOnlyList<DialogueChoiceOption> options, Action<int> onSelected, bool standalone = false)
+        {
             ClearChoices();
             choicesVisible = true;
-            choiceRoot.SetActive(dialogueVisible);
+            choiceRoot.SetActive(standalone || dialogueVisible);
+            if (standalone) { dialogueRoot.SetActive(false); SetPersistentHudVisible(false); }
 
-            float totalHeight = labels.Count * 82f + Mathf.Max(0, labels.Count - 1) * 18f;
+            if (useSceneUI) { ShowSceneChoices(options, onSelected); return; }
+            float totalHeight = options.Count * 82f + Mathf.Max(0, options.Count - 1) * 18f;
             choiceContainer.sizeDelta = new Vector2(900f, totalHeight);
-            for (int i = 0; i < labels.Count; i++)
+            for (int i = 0; i < options.Count; i++)
             {
                 int capturedIndex = i;
                 Button button = CreateButton(
                     choiceContainer,
                     $"Choice {i + 1}",
-                    $"[{i + 1}]  {labels[i]}",
+                    $"[{i + 1}]  {options[i].Label}",
                     new Vector2(900f, 82f),
                     Paper,
                     Color.black,
                     30);
                 LayoutElement layout = button.gameObject.AddComponent<LayoutElement>();
                 layout.preferredHeight = 82f;
-                button.onClick.AddListener(() => onSelected(capturedIndex));
+                button.onClick.AddListener(() => { if (options[capturedIndex].Interactable) onSelected(capturedIndex); });
                 choiceObjects.Add(button.gameObject);
             }
 
-            if (choiceObjects.Count > 0 && EventSystem.current != null)
-                EventSystem.current.SetSelectedGameObject(choiceObjects[0]);
+            RefreshChoiceOptions(options);
+            if (EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+                for (int i = 0; i < options.Count; i++)
+                    if (options[i].Interactable) { EventSystem.current.SetSelectedGameObject(choiceObjects[i]); break; }
+            }
+        }
+
+        public void RefreshChoiceOptions(IReadOnlyList<DialogueChoiceOption> options)
+        {
+            if (options == null) return;
+            for (int i = 0; i < Mathf.Min(options.Count, choiceObjects.Count); i++)
+            {
+                var button = choiceObjects[i].GetComponent<Button>();
+                button.interactable = options[i].Interactable;
+                var colors = button.colors; colors.disabledColor = disabledChoiceBackground; button.colors = colors;
+                button.GetComponent<Image>().color = Color.white;
+                var label = button.GetComponentInChildren<Text>();
+                label.text = $"[{i + 1}]  {options[i].Label}";
+                label.color = options[i].Interactable ? (useSceneUI ? choiceTemplate.GetComponentInChildren<Text>(true).color : Color.black) : disabledChoiceTextColor;
+                if (!options[i].Interactable && EventSystem.current != null && EventSystem.current.currentSelectedGameObject == button.gameObject)
+                    EventSystem.current.SetSelectedGameObject(null);
+            }
         }
 
         public void HideChoices()
         {
             choicesVisible = false;
+            if (choiceRoot == null) return;
             choiceRoot.SetActive(false);
             ClearChoices();
         }
@@ -261,6 +387,7 @@ namespace DetectiveGame.Dialogue
 
         public void HideBoard(bool returnToDialogue)
         {
+            if (boardRoot == null) return;
             boardRoot.SetActive(false);
             persistentHud.SetActive(true);
             if (!returnToDialogue) return;
@@ -286,6 +413,7 @@ namespace DetectiveGame.Dialogue
 
         public void HideDialogueLog(bool returnToDialogue)
         {
+            if (logRoot == null) return;
             logRoot.SetActive(false);
             persistentHud.SetActive(true);
             if (!returnToDialogue) return;
@@ -332,6 +460,18 @@ namespace DetectiveGame.Dialogue
             BuildBoard(canvasObject.transform);
             BuildDialogueLog(canvasObject.transform);
             BuildToast(canvasObject.transform);
+            pauseHoldRoot = CreatePanel(canvasObject.transform, "Pause Hold Progress", InkBlack);
+            SetRect(pauseHoldRoot.GetComponent<RectTransform>(), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+                new Vector2(0f, 90f), new Vector2(320f, 70f), new Vector2(0.5f, 0f));
+            Text holdLabel = CreateText(pauseHoldRoot.transform, "Label", "长按 Esc · 暂停", 23, TextAnchor.MiddleCenter, Paper);
+            StretchFull(holdLabel.rectTransform, 8f, 8f, 14f, 4f);
+            GameObject track = CreatePanel(pauseHoldRoot.transform, "Track", Muted);
+            RectTransform trackRect = track.GetComponent<RectTransform>();
+            trackRect.anchorMin = Vector2.zero; trackRect.anchorMax = Vector2.right;
+            trackRect.offsetMin = new Vector2(14f, 8f); trackRect.offsetMax = new Vector2(-14f, 13f);
+            pauseHoldFill = CreatePanel(track.transform, "Progress", Paper).GetComponent<RectTransform>();
+            StretchFull(pauseHoldFill);
+            pauseHoldRoot.SetActive(false);
         }
 
         private void BuildPersistentHud(Transform parent)
@@ -372,6 +512,7 @@ namespace DetectiveGame.Dialogue
             hintLayout.preferredHeight = 64f;
             Text hint = CreateText(hintPanel.transform, "Hint", "[Tab]  调查菜单", 24,
                 TextAnchor.MiddleCenter, Paper);
+            investigationHint = hint;
             StretchFull(hint.rectTransform, 8f);
             dialogueLogButtonObject.SetActive(false);
         }
@@ -466,8 +607,8 @@ namespace DetectiveGame.Dialogue
             wheelRoot.SetActive(false);
         }
 
-        private static readonly Color WheelNormalColor = new Color(0.055f, 0.07f, 0.09f, 0.97f);
-        private static readonly Color WheelSelectedColor = new Color(0.12f, 0.42f, 0.58f, 0.99f);
+        [SerializeField] private Color WheelNormalColor = new Color(0.055f, 0.07f, 0.09f, 0.97f);
+        [SerializeField] private Color WheelSelectedColor = new Color(0.12f, 0.42f, 0.58f, 0.99f);
 
         private RadialMenuSegmentGraphic CreateRadialGraphic(
             Transform parent,
@@ -488,7 +629,7 @@ namespace DetectiveGame.Dialogue
 
         private void UpdateInvestigationWheel()
         {
-            if (!wheelInteractive || wheelClosing || Mouse.current == null || wheelContainer == null) return;
+            if (!wheelInteractive || wheelClosing || wheelClickFeedback != null || Mouse.current == null || wheelContainer == null) return;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                     wheelContainer, Mouse.current.position.ReadValue(), null, out Vector2 pointerPosition)) return;
 
@@ -516,7 +657,7 @@ namespace DetectiveGame.Dialogue
             if (wheelCenterText == null) return;
             wheelCenterText.text = index >= 0 && index < wheelItems.Count
                 ? $"{wheelItems[index].Label}\n<size=18>单击进入</size>"
-                : "调查菜单\n<size=18>移动鼠标选择</size>";
+                : WheelTitle + "\n<size=18>移动鼠标选择</size>";
         }
 
         private void UpdateWheelHoverVisuals(bool immediate = false)
@@ -545,8 +686,24 @@ namespace DetectiveGame.Dialogue
         private void ConfirmWheelSelection()
         {
             if (!wheelInteractive || wheelClosing || selectedWheelIndex < 0 ||
-                selectedWheelIndex >= wheelItems.Count) return;
+                selectedWheelIndex >= wheelItems.Count || wheelClickFeedback != null) return;
             controller?.SelectInvestigationMenuOption(wheelItems[selectedWheelIndex].Option);
+            if (notebookEnabled) wheelClickFeedback = StartCoroutine(AnimateWheelClick(wheelItems[selectedWheelIndex]));
+        }
+
+        private IEnumerator AnimateWheelClick(WheelItemView item)
+        {
+            Vector3 initialScale = item.Content.localScale;
+            float elapsed = 0f;
+            while (elapsed < .16f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float pulse = Mathf.Sin(Mathf.Clamp01(elapsed / .16f) * Mathf.PI);
+                item.Content.localScale = initialScale * (1f - pulse * .12f);
+                yield return null;
+            }
+            item.Content.localScale = initialScale;
+            wheelClickFeedback = null;
         }
 
         private void BeginWheelTransition(IEnumerator transition)
@@ -557,6 +714,7 @@ namespace DetectiveGame.Dialogue
 
         private void StopWheelTransition()
         {
+            if (wheelClickFeedback != null) { StopCoroutine(wheelClickFeedback); wheelClickFeedback = null; }
             if (wheelTransition == null) return;
             StopCoroutine(wheelTransition);
             wheelTransition = null;
@@ -732,6 +890,9 @@ namespace DetectiveGame.Dialogue
             SetRect(nameRect, new Vector2(0f, 0f), new Vector2(0f, 0f),
                 new Vector2(48f, 12f), new Vector2(260f, 58f), new Vector2(0f, 0f));
             speakerText = CreateText(nameBox.transform, "Name", "人物姓名", 27, TextAnchor.MiddleCenter, Color.black);
+            speakerText.resizeTextForBestFit = true;
+            speakerText.resizeTextMinSize = 18;
+            speakerText.resizeTextMaxSize = 27;
             StretchFull(speakerText.rectTransform, 8f);
 
             dialogueText = CreateText(box.transform, "Dialogue Text", "", 31, TextAnchor.UpperLeft, Paper);
@@ -924,7 +1085,7 @@ namespace DetectiveGame.Dialogue
         private void ClearChoices()
         {
             for (int i = 0; i < choiceObjects.Count; i++)
-                if (choiceObjects[i] != null) Destroy(choiceObjects[i]);
+                if (choiceObjects[i] != null) { choiceObjects[i].SetActive(false); Destroy(choiceObjects[i]); }
             choiceObjects.Clear();
         }
 

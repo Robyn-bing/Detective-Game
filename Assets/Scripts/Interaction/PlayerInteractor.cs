@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using DetectiveGame.Dialogue;
+using DetectiveGame.Input;
 using DetectiveGame.Recall;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -17,6 +18,7 @@ namespace DetectiveGame.Interaction
         [SerializeField, Range(0.03f, 0.35f)] private float viewportFocusRadius = 0.16f;
         [SerializeField] private LayerMask visibilityLayers = Physics.DefaultRaycastLayers;
 
+        private RecallInteractor recallInteractor;
         private InputAction interactAction;
         private InteractionPromptUI promptUI;
         private WorldInteractable focusedTarget;
@@ -25,6 +27,7 @@ namespace DetectiveGame.Interaction
 
         private void Awake()
         {
+            recallInteractor = GetComponent<RecallInteractor>();
             if (viewCamera == null) viewCamera = Camera.main;
             if (recallSession == null) recallSession = FindAnyObjectByType<RecallSessionController>();
 
@@ -54,6 +57,7 @@ namespace DetectiveGame.Interaction
         private void Update()
         {
             if (viewCamera == null || DialogueController.AnyModalOpen ||
+                (GameInputModeController.Current != null && !GameInputModeController.Current.IsGameplay) ||
                 (recallSession != null && recallSession.IsActive))
             {
                 SetFocus(null);
@@ -74,14 +78,18 @@ namespace DetectiveGame.Interaction
                 WorldInteractable candidate = objects[i];
                 if (candidate == null || !candidate.IsInteractionAvailable) continue;
 
-                Vector3 targetPoint = candidate.InteractionAnchor.position;
+                RecallableObject pairedRecall = candidate.AssociatedRecall;
+                bool hasRecall = pairedRecall != null && pairedRecall.isActiveAndEnabled && pairedRecall.Data != null && pairedRecall.Data.AvailablePeriodCount > 0;
+                Vector3 targetPoint = hasRecall ? pairedRecall.InteractionAnchor.position : candidate.InteractionAnchor.position;
+                float allowedDistance = hasRecall ? Mathf.Min(candidate.InteractionDistance, pairedRecall.InteractionDistance) : candidate.InteractionDistance;
+                float allowedFocus = hasRecall && recallInteractor != null ? Mathf.Min(viewportFocusRadius, recallInteractor.ViewportFocusRadius) : viewportFocusRadius;
                 float distance = Vector3.Distance(transform.position, targetPoint);
-                if (distance > candidate.InteractionDistance) continue;
+                if (distance > allowedDistance) continue;
 
                 Vector3 viewport = viewCamera.WorldToViewportPoint(targetPoint);
                 if (viewport.z <= 0f) continue;
                 float centerDistance = new Vector2(viewport.x - 0.5f, viewport.y - 0.5f).magnitude;
-                if (centerDistance > viewportFocusRadius) continue;
+                if (centerDistance > allowedFocus) continue;
                 if (!HasLineOfSight(candidate, targetPoint)) continue;
 
                 float score = centerDistance * 4f + distance / candidate.InteractionDistance;
@@ -116,11 +124,13 @@ namespace DetectiveGame.Interaction
 
         private void OnInteract(InputAction.CallbackContext context)
         {
-            if (focusedTarget == null || !focusedTarget.IsInteractionAvailable) return;
+            if (focusedTarget == null || !focusedTarget.IsInteractionAvailable || !promptUI.IsInteractPresented(focusedTarget)) return;
             if (DialogueController.AnyModalOpen) return;
+            if (GameInputModeController.Current != null && !GameInputModeController.Current.IsGameplay) return;
             if (recallSession != null && recallSession.IsActive) return;
             focusedTarget.Interact(transform);
             SetFocus(null);
         }
     }
 }
+

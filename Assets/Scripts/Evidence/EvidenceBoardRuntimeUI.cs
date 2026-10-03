@@ -10,7 +10,7 @@ using UnityEngine.UI;
 namespace DetectiveGame.Evidence
 {
     [DisallowMultipleComponent]
-    public sealed class EvidenceBoardRuntimeUI : MonoBehaviour
+    public sealed partial class EvidenceBoardRuntimeUI : MonoBehaviour
     {
         private static readonly Color Background = new Color(0.018f, 0.02f, 0.026f, 0.985f);
         private static readonly Color Panel = new Color(0.055f, 0.06f, 0.075f, 0.98f);
@@ -32,25 +32,26 @@ namespace DetectiveGame.Evidence
         private EvidenceDefinition selectedEvidence;
         private RecallObjectData selectedRecallData;
         private RecallPeriod previewPeriod;
-        private Font font;
+        [SerializeField] private Font font;
         private bool ownsFont;
-        private GameObject canvasObject;
-        private RectTransform canvasRect;
-        private GameObject boardRoot;
-        private GameObject deductionPanelRoot;
-        private GameObject previewPanelRoot;
-        private GameObject emptyRightPanel;
-        private RectTransform evidenceContent;
-        private RectTransform deductionContent;
-        private Text descriptionText;
-        private Text selectedTitleText;
-        private Text emptyText;
-        private RawImage previewImage;
-        private Slider timelineSlider;
-        private Text previewTimeText;
-        private Text playButtonText;
-        private GameObject toastRoot;
-        private Text toastText;
+        [SerializeField] private GameObject canvasObject;
+        [SerializeField] private RectTransform canvasRect;
+        [SerializeField] private GameObject boardRoot;
+        [SerializeField] private GameObject deductionPanelRoot;
+        [SerializeField] private GameObject previewPanelRoot;
+        [SerializeField] private GameObject emptyRightPanel;
+        [SerializeField] private RectTransform evidenceContent;
+        [SerializeField] private RectTransform deductionContent;
+        [SerializeField] private Text descriptionText;
+        [SerializeField] private Text selectedTitleText;
+        [SerializeField] private bool preserveAuthoredTitle;
+        [SerializeField] private Text emptyText;
+        [SerializeField] private RawImage previewImage;
+        [SerializeField] private Slider timelineSlider;
+        [SerializeField] private Text previewTimeText;
+        [SerializeField] private Text playButtonText;
+        [SerializeField] private GameObject toastRoot;
+        [SerializeField] private Text toastText;
         private float toastRemaining;
 
         private GameObject previewStage;
@@ -64,7 +65,8 @@ namespace DetectiveGame.Evidence
         {
             EnsureEventSystem();
             CreatePreviewInfrastructure();
-            BuildUI();
+            if (useSceneUI) BindSceneUI();
+            else BuildUI();
         }
 
         private void Update()
@@ -91,17 +93,23 @@ namespace DetectiveGame.Evidence
                 service.EvidenceDiscovered -= OnEvidenceDiscovered;
                 service.EvidenceUpdated -= OnEvidenceUpdated;
             }
-            if (canvasObject != null) Destroy(canvasObject);
+            if (!useSceneUI && canvasObject != null) Destroy(canvasObject);
             if (previewStage != null) Destroy(previewStage);
             if (previewTexture != null)
             {
                 previewTexture.Release();
                 Destroy(previewTexture);
             }
-            if (ownsFont && font != null) Destroy(font);
+            if (!useSceneUI && ownsFont && font != null) Destroy(font);
         }
 
         public bool IsVisible => boardRoot != null && boardRoot.activeSelf;
+
+        public void SetNotebookLayout(bool enabled)
+        {
+            if (boardRoot == null || useSceneUI) return;
+            boardRoot.GetComponent<RectTransform>().offsetMin = new Vector2(enabled ? 180f : 24f, 24f);
+        }
 
         public void Initialize(EvidenceBoardController owner, EvidenceBoardService evidenceService)
         {
@@ -125,7 +133,13 @@ namespace DetectiveGame.Evidence
             if (previewCamera != null) previewCamera.enabled = true;
             RefreshEvidenceList();
             if (selectedEvidence != null && service != null && service.Contains(selectedEvidence.EvidenceId))
+            {
+                float savedTime = previewClipTime;
                 SelectEvidence(selectedEvidence);
+                previewClipTime = savedTime;
+                SamplePreview();
+                UpdatePreviewControls();
+            }
             else if (service != null && service.DiscoveredEvidence.Count > 0)
                 SelectEvidence(service.DiscoveredEvidence[0]);
             else ShowEmptyState();
@@ -133,7 +147,7 @@ namespace DetectiveGame.Evidence
 
         public void Hide()
         {
-            boardRoot.SetActive(false);
+            if (boardRoot != null) boardRoot.SetActive(false);
             previewPlaying = false;
             if (previewCamera != null) previewCamera.enabled = false;
         }
@@ -179,6 +193,7 @@ namespace DetectiveGame.Evidence
 
         private void RefreshEvidenceList()
         {
+            if (useSceneUI) { RefreshSceneEvidenceCards(); return; }
             ClearObjects(evidenceCards);
             if (service == null) return;
             for (int i = 0; i < service.DiscoveredEvidence.Count; i++)
@@ -212,7 +227,7 @@ namespace DetectiveGame.Evidence
             emptyRightPanel.SetActive(false);
             deductionPanelRoot.SetActive(true);
             previewPanelRoot.SetActive(true);
-            selectedTitleText.text = evidence.DisplayName;
+            if (!preserveAuthoredTitle) selectedTitleText.text = evidence.DisplayName;
             RefreshEvidenceList();
             RefreshDescription();
             RefreshDeductionRows();
@@ -223,7 +238,7 @@ namespace DetectiveGame.Evidence
         {
             selectedEvidence = null;
             selectedRecallData = null;
-            selectedTitleText.text = "证据板";
+            if (!preserveAuthoredTitle) selectedTitleText.text = "证据板";
             descriptionText.text = "证据会记录在这里。";
             deductionPanelRoot.SetActive(false);
             previewPanelRoot.SetActive(false);
@@ -254,6 +269,7 @@ namespace DetectiveGame.Evidence
 
         private void RefreshDeductionRows()
         {
+            if (useSceneUI) { RefreshSceneDeductionRows(); return; }
             ClearObjects(deductionRows);
             if (selectedEvidence == null) return;
 
@@ -449,11 +465,11 @@ namespace DetectiveGame.Evidence
             {
                 EvidenceMomentDefinition moment = selectedEvidence.GetMoment(i);
                 if (moment == null) continue;
-                GameObject marker = CreatePanel(timelineSlider.transform, $"Marker {moment.TimeLabel}", Accent);
+                GameObject marker = useSceneUI ? Instantiate(markerTemplate, timelineSlider.transform) : CreatePanel(timelineSlider.transform, $"Marker {moment.TimeLabel}", Accent);
+                marker.SetActive(true);
                 RectTransform rect = marker.GetComponent<RectTransform>();
                 rect.anchorMin = rect.anchorMax = new Vector2(moment.NormalizedTime, 0.5f);
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.sizeDelta = new Vector2(8f, 30f);
+                if (!useSceneUI) { rect.pivot = new Vector2(0.5f, 0.5f); rect.sizeDelta = new Vector2(8f, 30f); }
                 rect.anchoredPosition = Vector2.zero;
                 marker.GetComponent<Image>().raycastTarget = false;
                 timelineMarkers.Add(marker);
@@ -765,7 +781,7 @@ namespace DetectiveGame.Evidence
         private static void ClearObjects(List<GameObject> objects)
         {
             for (int i = 0; i < objects.Count; i++)
-                if (objects[i] != null) Destroy(objects[i]);
+                if (objects[i] != null) { objects[i].SetActive(false); Destroy(objects[i]); }
             objects.Clear();
         }
 

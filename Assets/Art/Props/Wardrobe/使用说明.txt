@@ -1,0 +1,14 @@
+衣柜背景资产（URP）
+
+使用：在 Project 找到 Models/SM_Wardrobe_Background.fbx，等待导入完成，然后自行拖入 Scene 或 Hierarchy。尚未向任何场景放置实例。
+Materials/M_Wardrobe_Background.mat 已关联 FBX 中 Armoire_PBR 材质槽，三张贴图已配置。
+模型尺寸：约宽1.216668米、深0.849239米、高2.2米；原点在底部中心。保持 Scale=(1,1,1)，自行调整位置和朝向。
+若 Unity 尚未显示资源，请使用 Assets > Refresh。
+模型设置：米制，Scale Factor=1，Normals=Import，Tangents=Calculate Mikktspace，生成光照UV，无动画，无自动碰撞。
+贴图设置：最大1K，Mip Maps开启；颜色为sRGB，法线为Normal map，金属度/平滑度贴图关闭sRGB并保留Alpha。
+材质：URP/Lit、Opaque；Base Map、Normal Map、Metallic Map已连接；Smoothness使用Metallic Alpha，倍率1。
+若拖入后材质未显示，选中FBX检查Materials中Armoire_PBR是否映射到M_Wardrobe_Background，或将该材质拖到网格上。
+如需阻挡玩家，摆放后添加Box Collider；无父级额外变换的直立衣柜可参考Center=(0,1.1,0)，Size=(1.216668,2.2,0.849239)，以Scene中的碰撞框为准。无需Rigidbody。
+如使用烘焙光照，在最终摆放后启用Contribute GI并烘焙；检查生成光照UV是否有重叠警告。
+完成摆放或组件配置后，可拖回Project另存为Prefab，方便复用。
+已检查文件和资源GUID引用；尚未在Unity编辑器内验证显示和光照效果。

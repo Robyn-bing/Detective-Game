@@ -11,6 +11,9 @@ namespace DetectiveGame.Recall
         [SerializeField, Tooltip("Stable ID used by evidence and save data. Do not change it after content ships.")]
         private string periodId;
         [SerializeField] private string label = "Memory";
+        [SerializeField, Tooltip("Optional date prefix, for example 9.8.")] private string dateLabel;
+        [SerializeField, Tooltip("Start playback after reconstruction. Other memories remain paused by default.")]
+        private bool autoPlay;
         [SerializeField, Range(0, 23)] private int startHour;
         [SerializeField, Range(0, 59)] private int startMinute;
         [SerializeField, Range(0, 23)] private int endHour;
@@ -34,6 +37,9 @@ namespace DetectiveGame.Recall
             ? $"{StartTime}-{EndTime}"
             : periodId;
         public string Label => label;
+        public string TimeRange => string.IsNullOrWhiteSpace(dateLabel)
+            ? $"{StartTime} - {EndTime}" : $"{dateLabel} {StartTime} - {EndTime}";
+        public bool AutoPlay => autoPlay;
         public AnimationClip AnimationClip => animationClip;
         public float SynchronizedEntrySeconds => synchronizedEntrySeconds;
         public float PlaybackSpeed => playbackSpeed;

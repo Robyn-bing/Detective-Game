@@ -1,11 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
+using DetectiveGame.Recall;
 
 namespace DetectiveGame.Interaction
 {
     /// <summary>Base contract for objects the player can operate with the Interact action.</summary>
     public abstract class WorldInteractable : MonoBehaviour
     {
+        private RecallableObject associatedRecall;
+        public RecallableObject AssociatedRecall => associatedRecall;
+
         private static readonly List<WorldInteractable> ActiveObjects = new List<WorldInteractable>();
 
         [Header("Interaction")]
@@ -25,6 +29,7 @@ namespace DetectiveGame.Interaction
 
         protected virtual void OnEnable()
         {
+            associatedRecall = GetComponent<RecallableObject>();
             ActiveObjects.Remove(this);
             ActiveObjects.Add(this);
         }
@@ -47,3 +52,4 @@ namespace DetectiveGame.Interaction
         }
     }
 }
+

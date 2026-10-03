@@ -1,0 +1,4 @@
+Upstream: https://github.com/CristianQiu/Unity-URP-Volumetric-Light
+Commit: 354ebc5b6ed3c2c40dc9797c813b56d5da213c4e
+Version: 0.5.91
+Embedded unchanged from the upstream source archive. See LICENSE.md.

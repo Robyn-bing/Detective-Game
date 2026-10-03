@@ -125,6 +125,29 @@ namespace StarterAssets
             _rotationVelocity = 0f;
         }
 
+        // Used by cinematics/teleports after the capsule has been placed on the ground.
+        public void ResetMotionAfterCinematic()
+        {
+            _speed = _animationBlend = _rotationVelocity = 0f;
+            _verticalVelocity = -2f;
+            _targetRotation = transform.eulerAngles.y;
+            _jumpTimeoutDelta = JumpTimeout;
+            _fallTimeoutDelta = FallTimeout;
+            Grounded = true;
+            var inputs = GetComponent<StarterAssetsInputs>();
+            inputs.MoveInput(Vector2.zero);
+            inputs.LookInput(Vector2.zero);
+            inputs.JumpInput(false);
+            inputs.SprintInput(false);
+            var a = GetComponent<Animator>();
+            if (a == null) return;
+            a.SetFloat("Speed", 0f);
+            a.SetFloat("MotionSpeed", 1f);
+            a.SetBool("Jump", false);
+            a.SetBool("FreeFall", false);
+            a.SetBool("Grounded", true);
+        }
+
         public void SetThirdPersonLook(float yaw, float pitch)
         {
             _cinemachineTargetYaw = yaw;

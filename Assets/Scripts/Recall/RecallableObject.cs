@@ -17,9 +17,7 @@ namespace DetectiveGame.Recall
         [SerializeField, Range(0.0005f, 0.03f)] private float outlineWidth = 0.006f;
         [SerializeField, Min(0.1f)] private float outlinePulseSpeed = 2.2f;
 
-        private readonly List<Renderer> outlineRenderers = new List<Renderer>();
-        private MaterialPropertyBlock outlineProperties;
-        private bool highlighted;
+        private DetectiveGame.Interaction.InteractionHighlight highlight;
 
         public RecallObjectData Data => data;
         public EvidenceDefinition Evidence => evidence;
@@ -37,70 +35,19 @@ namespace DetectiveGame.Recall
             ActiveObjects.Add(this);
         }
 
-        private void OnDisable() => ActiveObjects.Remove(this);
 
-        private void Update()
-        {
-            if (!highlighted || outlineRenderers.Count == 0) return;
-            float alpha = Mathf.Lerp(0.25f, 0.9f, (Mathf.Sin(Time.unscaledTime * outlinePulseSpeed) + 1f) * 0.5f);
-            outlineProperties.SetColor("_OutlineColor", new Color(1f, 1f, 1f, alpha));
-            outlineProperties.SetFloat("_OutlineWidth", outlineWidth);
-            for (int i = 0; i < outlineRenderers.Count; i++)
-                if (outlineRenderers[i] != null) outlineRenderers[i].SetPropertyBlock(outlineProperties);
-        }
 
         public void SetInteractionHighlight(bool value, Material outlineMaterial)
         {
-            if (value && outlineRenderers.Count == 0 && outlineMaterial != null) CreateOutline(outlineMaterial);
-            highlighted = value && outlineRenderers.Count > 0;
-            for (int i = 0; i < outlineRenderers.Count; i++)
-                if (outlineRenderers[i] != null) outlineRenderers[i].enabled = highlighted;
+            if (highlight == null) highlight = GetComponent<DetectiveGame.Interaction.InteractionHighlight>();
+            if (highlight == null && value) highlight = gameObject.AddComponent<DetectiveGame.Interaction.InteractionHighlight>();
+            if (highlight != null) highlight.SetHighlighted(value, outlineMaterial, outlinePulseSpeed);
         }
 
-        private void CreateOutline(Material outlineMaterial)
+        private void OnDisable()
         {
-            outlineProperties = new MaterialPropertyBlock();
-            Renderer[] sources = GetComponentsInChildren<Renderer>(true);
-            for (int i = 0; i < sources.Length; i++)
-            {
-                Renderer source = sources[i];
-                if (source is MeshRenderer meshRenderer)
-                {
-                    MeshFilter sourceFilter = meshRenderer.GetComponent<MeshFilter>();
-                    if (sourceFilter == null || sourceFilter.sharedMesh == null) continue;
-                    GameObject outline = CreateOutlineObject(source.transform, outlineMaterial);
-                    outline.AddComponent<MeshFilter>().sharedMesh = sourceFilter.sharedMesh;
-                    outlineRenderers.Add(outline.AddComponent<MeshRenderer>());
-                }
-                else if (source is SkinnedMeshRenderer skinned && skinned.sharedMesh != null)
-                {
-                    GameObject outline = CreateOutlineObject(source.transform, outlineMaterial);
-                    var copy = outline.AddComponent<SkinnedMeshRenderer>();
-                    copy.sharedMesh = skinned.sharedMesh;
-                    copy.bones = skinned.bones;
-                    copy.rootBone = skinned.rootBone;
-                    copy.localBounds = skinned.localBounds;
-                    copy.updateWhenOffscreen = skinned.updateWhenOffscreen;
-                    outlineRenderers.Add(copy);
-                }
-            }
-            for (int i = 0; i < outlineRenderers.Count; i++)
-            {
-                outlineRenderers[i].sharedMaterial = outlineMaterial;
-                outlineRenderers[i].shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                outlineRenderers[i].receiveShadows = false;
-            }
-        }
-
-        private static GameObject CreateOutlineObject(Transform source, Material outlineMaterial)
-        {
-            var outline = new GameObject("Recall Outline (Runtime)");
-            outline.layer = source.gameObject.layer;
-            outline.transform.SetParent(source, false);
-            outline.transform.localPosition = Vector3.zero;
-            outline.transform.localRotation = Quaternion.identity;
-            outline.transform.localScale = Vector3.one;
-            return outline;
+            ActiveObjects.Remove(this);
+            SetInteractionHighlight(false, null);
         }
 
         private void OnValidate()
@@ -109,3 +56,4 @@ namespace DetectiveGame.Recall
         }
     }
 }
+

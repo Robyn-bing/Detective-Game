@@ -10,7 +10,10 @@ namespace DetectiveGame.Input
         InvestigationWheel,
         FullScreenPanel,
         Dialogue,
-        Recall
+        Recall,
+        Cinematic,
+        TelephoneDial,
+        InspectObject
     }
 
     [DefaultExecutionOrder(-1000)]

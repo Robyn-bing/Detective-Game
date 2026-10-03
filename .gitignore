@@ -104,3 +104,9 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# Local automation scratch files and legacy source-art staging.
+# Canonical art sources live outside this repository in ../美术资产/制作/.
+/.tmp-*/
+/SourceArt/
+__pycache__/

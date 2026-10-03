@@ -1,4 +1,6 @@
 using DetectiveGame.Dialogue;
+using DetectiveGame.Input;
+using DetectiveGame.Interaction;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -13,6 +15,8 @@ namespace DetectiveGame.Recall
         [SerializeField, Range(0.03f, 0.3f)] private float viewportFocusRadius = 0.12f;
         [SerializeField] private LayerMask visibilityLayers = Physics.DefaultRaycastLayers;
 
+        private InteractionPromptUI promptUI;
+        public float ViewportFocusRadius => viewportFocusRadius;
         private InputAction recallAction;
         private RecallableObject focusedTarget;
 
@@ -21,6 +25,10 @@ namespace DetectiveGame.Recall
         private void Awake()
         {
             if (viewCamera == null) viewCamera = Camera.main;
+            promptUI = GetComponent<InteractionPromptUI>();
+            if (promptUI == null) promptUI = gameObject.AddComponent<InteractionPromptUI>();
+            promptUI.SetCamera(viewCamera);
+            promptUI.SetOutlineMaterial(outlineMaterial);
             recallAction = new InputAction("Recall", InputActionType.Button, "<Keyboard>/r");
             recallAction.AddBinding("<Gamepad>/buttonWest");
         }
@@ -45,7 +53,8 @@ namespace DetectiveGame.Recall
             if (recallSession != null && recallSession.State == RecallSessionController.SessionState.SelectingPeriod)
                 return;
             if (recallSession == null || recallSession.IsActive || viewCamera == null ||
-                DialogueController.AnyModalOpen)
+                DialogueController.AnyModalOpen ||
+                (GameInputModeController.Current != null && !GameInputModeController.Current.IsGameplay))
             {
                 SetFocus(null);
                 return;
@@ -95,17 +104,18 @@ namespace DetectiveGame.Recall
         private void SetFocus(RecallableObject target)
         {
             if (focusedTarget == target) return;
-            if (focusedTarget != null) focusedTarget.SetInteractionHighlight(false, outlineMaterial);
             focusedTarget = target;
-            if (focusedTarget != null) focusedTarget.SetInteractionHighlight(true, outlineMaterial);
-            if (recallSession != null) recallSession.SetWorldPrompt(focusedTarget);
+            promptUI.ShowRecall(focusedTarget);
+
         }
 
         private void OnRecall(InputAction.CallbackContext context)
         {
-            if (focusedTarget != null && recallSession != null && !recallSession.IsActive &&
-                !DialogueController.AnyModalOpen)
+            if (focusedTarget != null && promptUI.IsRecallPresented(focusedTarget) && recallSession != null && !recallSession.IsActive &&
+                !DialogueController.AnyModalOpen &&
+                (GameInputModeController.Current == null || GameInputModeController.Current.IsGameplay))
                 recallSession.BeginRecall(focusedTarget);
         }
     }
 }
+

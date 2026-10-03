@@ -12,13 +12,16 @@ using UnityEngine.InputSystem;
 
 namespace DetectiveGame.Dialogue
 {
+    public enum DialogueLineType { Dialogue, InnerThought }
     public enum InvestigationMenuOption
     {
         TestimonyBoard,
         EvidenceBoard,
         Save,
         Hint,
-        Settings
+        Settings,
+        QuickSave,
+        ReturnToTitle
     }
 
     [DisallowMultipleComponent]
@@ -35,6 +38,16 @@ namespace DetectiveGame.Dialogue
         [SerializeField] private RecallSessionController recallSession;
         [SerializeField] private GameInputModeController inputModes;
         [SerializeField] private EvidenceBoardController evidenceBoard;
+        [Header("Case Notebook / Pause Menu")]
+        [SerializeField] private bool useCaseNotebook;
+        [SerializeField, Range(0.2f, 1.2f)] private float pauseHoldDuration = 0.45f;
+        public bool UseCaseNotebook => useCaseNotebook;
+        private bool notebookEvidence;
+        private bool pauseHoldPending;
+        private bool pauseEligibleLastFrame;
+        private float pauseHoldStarted;
+        private bool pauseTimeCaptured;
+        private float timeScaleBeforePause;
 
         private readonly InputAction advanceAction = new InputAction(
             "Advance Dialogue", InputActionType.Button, "<Keyboard>/space");
@@ -54,11 +67,44 @@ namespace DetectiveGame.Dialogue
         private bool wheelClosing;
         private bool boardOpen;
         private bool logOpen;
+        private UnityEngine.Object dialogueHost;
+        private Action<bool> hostedFinished;
+        private DialogueLineType currentLineType;
+        private int lastAdvanceFrame = -1;
+        private UnityEngine.Object choiceHost;
+        private IReadOnlyList<DialogueChoiceOption> hostedChoices;
+        private Action<int> hostedChoiceSelected;
+        private bool presentationBlocked;
+        private bool retainHostedFinalLine;
+        public void SetPresentationBlocked(bool blocked) => presentationBlocked = blocked;
+        public void HidePresentation() => ui.HideDialogue();
+        public bool ShowHostedChoices(UnityEngine.Object host, IReadOnlyList<DialogueChoiceOption> options, Action<int> selected)
+        {
+            if (!CanBeginDialogue || host == null || !inputModes.IsOwnedBy(host)) return false;
+            choiceHost = host; hostedChoices = options; hostedChoiceSelected = selected;
+            choicesVisible = true;
+            ui.ShowChoices(options, SelectChoice, true);
+            return true;
+        }
+        public void RefreshHostedChoices(UnityEngine.Object host)
+        {
+            if (choiceHost == host) ui.RefreshChoiceOptions(hostedChoices);
+        }
+        public void CloseHostedChoices(UnityEngine.Object host)
+        {
+            if (choiceHost != host) return;
+            choiceHost = null; hostedChoices = null; hostedChoiceSelected = null;
+            choicesVisible = false; ui.HideChoices();
+        }
+        public bool IsDialogueActive => dialogueActive;
+        public bool IsHostedDialogue => dialogueHost != null || choiceHost != null;
+        public DialogueLineType CurrentLineType => currentLineType;
+        public string CurrentSpeakerId => currentSpeakerId;
 
         public static DialogueController Current { get; private set; }
         public static bool AnyModalOpen =>
             (Current != null && Current.HasOpenModal) || EvidenceBoardController.AnyOpen;
-        public bool HasOpenModal => dialogueActive || wheelOpen || boardOpen || logOpen;
+        public bool HasOpenModal => dialogueActive || wheelOpen || boardOpen || logOpen || choiceHost != null;
         public bool CanBeginDialogue => !HasOpenModal && (recallSession == null || !recallSession.IsActive);
 
         private void Awake()
@@ -73,6 +119,7 @@ namespace DetectiveGame.Dialogue
             knowledge.Configure(investigationDatabase);
             ui = GetComponent<DialogueRuntimeUI>();
             ui.Initialize(this, knowledge, investigationDatabase);
+            ui.ConfigureCaseNotebook(useCaseNotebook);
 
             advanceAction.AddBinding("<Keyboard>/enter");
             advanceAction.AddBinding("<Gamepad>/buttonSouth");
@@ -85,6 +132,7 @@ namespace DetectiveGame.Dialogue
             Current = this;
             advanceAction.performed += OnAdvance;
             cancelAction.performed += OnCancel;
+            cancelAction.canceled += OnCancelReleased;
             investigationMenuAction.performed += OnInvestigationMenu;
             advanceAction.Enable();
             cancelAction.Enable();
@@ -95,11 +143,18 @@ namespace DetectiveGame.Dialogue
         {
             advanceAction.performed -= OnAdvance;
             cancelAction.performed -= OnCancel;
+            cancelAction.canceled -= OnCancelReleased;
+            ResetPauseHold();
+            RestorePauseTime();
+            if (boardOpen && notebookEvidence && evidenceBoard != null) evidenceBoard.HideNotebookPage();
             investigationMenuAction.performed -= OnInvestigationMenu;
             advanceAction.Disable();
             cancelAction.Disable();
             investigationMenuAction.Disable();
+            var cancelledChoice = hostedChoiceSelected;
             AbortModalState();
+            cancelledChoice?.Invoke(-1);
+            FinishHostedDialogue(false);
             RestoreGameplay(true);
             if (Current == this) Current = null;
         }
@@ -114,11 +169,14 @@ namespace DetectiveGame.Dialogue
 
         private void Update()
         {
+            UpdatePauseHold();
+            pauseEligibleLastFrame = CanStartPauseHold();
             bool recallActive = recallSession != null && recallSession.IsActive;
             ui.SetPersistentHudVisible(
+                !IsHostedDialogue && (inputModes == null || inputModes.IsGameplay || dialogueActive) &&
                 !recallActive && !wheelOpen && !boardOpen && !logOpen && !EvidenceBoardController.AnyOpen);
 
-            if (!dialogueActive || !choicesVisible || boardOpen || logOpen || Keyboard.current == null) return;
+            if (presentationBlocked || (!dialogueActive && choiceHost == null) || !choicesVisible || boardOpen || logOpen || Keyboard.current == null) return;
             if (Keyboard.current.digit1Key.wasPressedThisFrame) SelectChoice(0);
             else if (Keyboard.current.digit2Key.wasPressedThisFrame) SelectChoice(1);
             else if (Keyboard.current.digit3Key.wasPressedThisFrame) SelectChoice(2);
@@ -127,11 +185,36 @@ namespace DetectiveGame.Dialogue
 
         public void BeginDialogue(InkFile inkFile)
         {
-            if (!CanBeginDialogue) return;
+            TryBeginDialogue(inkFile);
+        }
+
+        // The host retains the existing input lock through dialogue, visual fade and camera return.
+        public bool BeginHostedDialogue(InkFile inkFile, UnityEngine.Object host, Action<bool> onFinished, bool retainFinalLine = false)
+        {
+            if (!CanBeginDialogue || host == null || inputModes == null || !inputModes.IsOwnedBy(host)) return false;
+            dialogueHost = host;
+            retainHostedFinalLine = retainFinalLine;
+            hostedFinished = onFinished;
+            if (TryBeginDialogue(inkFile)) return true;
+            dialogueHost = null;
+            hostedFinished = null;
+            return false;
+        }
+
+        public void AbortHostedDialogue(UnityEngine.Object host)
+        {
+            if (dialogueHost != host || host == null) return;
+            AbortModalState();
+            FinishHostedDialogue(false);
+        }
+
+        private bool TryBeginDialogue(InkFile inkFile)
+        {
+            if (!CanBeginDialogue) return false;
             if (inkFile == null || !inkFile.isCompiled)
             {
                 Debug.LogError("Dialogue cannot start because its Ink file is missing or has compiler errors.", this);
-                return;
+                return false;
             }
 
             try
@@ -141,27 +224,36 @@ namespace DetectiveGame.Dialogue
             catch (Exception exception)
             {
                 Debug.LogException(exception, this);
-                return;
+                return false;
             }
 
-            if (!FreezeGameplay(GameInputMode.Dialogue))
+            if (!IsHostedDialogue && !FreezeGameplay(GameInputMode.Dialogue))
             {
                 story = null;
-                return;
+                return false;
             }
 
             dialogueLog.Clear();
             currentSpeakerId = InvestigationIds.Characters.Clara;
+            currentLineType = DialogueLineType.Dialogue;
+            lastAdvanceFrame = -1;
             dialogueActive = true;
             choicesVisible = false;
             ui.ShowDialogue();
+            if (IsHostedDialogue) ui.SetPersistentHudVisible(false);
+            bool wasBlocked = presentationBlocked;
+            presentationBlocked = false;
             AdvanceStory();
+            presentationBlocked = wasBlocked;
+            return true;
         }
 
         public void AdvanceStory()
         {
-            if (!dialogueActive || choicesVisible || wheelOpen || boardOpen || logOpen ||
+            if (presentationBlocked || !dialogueActive || choicesVisible || wheelOpen || boardOpen || logOpen ||
                 EvidenceBoardController.AnyOpen || story == null) return;
+            if (lastAdvanceFrame == Time.frameCount) return;
+            lastAdvanceFrame = Time.frameCount;
 
             while (story.canContinue)
             {
@@ -170,8 +262,8 @@ namespace DetectiveGame.Dialogue
                 if (string.IsNullOrWhiteSpace(text)) continue;
 
                 ResolveSpeaker(currentSpeakerId, out string speakerName, out Sprite portrait);
-                dialogueLog.Add(new DialogueLogEntry(speakerName, text));
-                ui.ShowLine(speakerName, portrait, text);
+                dialogueLog.Add(new DialogueLogEntry(speakerName + (currentLineType == DialogueLineType.InnerThought ? "（心声）" : ""), text));
+                ui.ShowLine(speakerName, portrait, text, currentLineType);
                 return;
             }
 
@@ -190,6 +282,13 @@ namespace DetectiveGame.Dialogue
 
         public void SelectChoice(int displayedIndex)
         {
+            if (presentationBlocked) return;
+            if (choiceHost != null)
+            {
+                if (displayedIndex < 0 || displayedIndex >= hostedChoices.Count || !hostedChoices[displayedIndex].Interactable) return;
+                hostedChoiceSelected?.Invoke(displayedIndex);
+                return;
+            }
             if (!dialogueActive || !choicesVisible || story == null || wheelOpen || boardOpen || logOpen ||
                 EvidenceBoardController.AnyOpen) return;
             if (displayedIndex < 0 || displayedIndex >= story.currentChoices.Count) return;
@@ -209,6 +308,7 @@ namespace DetectiveGame.Dialogue
 
         public void ToggleInvestigationWheel()
         {
+            if (useCaseNotebook) { ToggleCaseNotebook(); return; }
             if (wheelOpen)
             {
                 CloseInvestigationWheel();
@@ -226,6 +326,8 @@ namespace DetectiveGame.Dialogue
 
         public void OpenInvestigationWheel()
         {
+            if (useCaseNotebook && !CanStartPauseHold()) return;
+            if (IsHostedDialogue) return;
             if (wheelOpen || wheelClosing || boardOpen || logOpen || EvidenceBoardController.AnyOpen ||
                 (recallSession != null && recallSession.IsActive)) return;
             if (dialogueActive)
@@ -234,6 +336,12 @@ namespace DetectiveGame.Dialogue
             }
             else if (!FreezeGameplay(GameInputMode.InvestigationWheel)) return;
             wheelOpen = true;
+            if (useCaseNotebook)
+            {
+                timeScaleBeforePause = Time.timeScale;
+                pauseTimeCaptured = true;
+                Time.timeScale = 0f;
+            }
             ui.ShowInvestigationWheel();
         }
 
@@ -247,6 +355,7 @@ namespace DetectiveGame.Dialogue
 
         private void FinishClosingInvestigationWheel(bool returnToDialogue)
         {
+            RestorePauseTime();
             wheelOpen = false;
             wheelClosing = false;
             if (returnToDialogue && dialogueActive)
@@ -287,6 +396,8 @@ namespace DetectiveGame.Dialogue
                 InvestigationMenuOption.Save => "存档",
                 InvestigationMenuOption.Hint => "提示",
                 InvestigationMenuOption.Settings => "设置",
+                InvestigationMenuOption.QuickSave => "快速存档",
+                InvestigationMenuOption.ReturnToTitle => "返回标题",
                 _ => "该"
             };
             ui.ShowFeatureUnavailable(label);
@@ -294,6 +405,7 @@ namespace DetectiveGame.Dialogue
 
         public void OpenBoard()
         {
+            if (IsHostedDialogue) return;
             if (boardOpen || (recallSession != null && recallSession.IsActive)) return;
             if (logOpen) CloseDialogueLog();
             if (wheelOpen)
@@ -308,12 +420,22 @@ namespace DetectiveGame.Dialogue
                                        !inputModes.TrySetMode(this, GameInputMode.FullScreenPanel))) return;
             boardOpen = true;
             ui.ShowBoard();
+            if (useCaseNotebook)
+            {
+                ui.ShowNotebookNavigation(true, notebookEvidence);
+                if (notebookEvidence) ShowNotebookPage(true);
+            }
         }
 
         public void CloseBoard()
         {
             if (!boardOpen) return;
             boardOpen = false;
+            if (useCaseNotebook)
+            {
+                if (evidenceBoard != null) evidenceBoard.HideNotebookPage();
+                ui.ShowNotebookNavigation(false, notebookEvidence);
+            }
             ui.HideBoard(dialogueActive);
             if (dialogueActive)
             {
@@ -324,6 +446,7 @@ namespace DetectiveGame.Dialogue
 
         public void OpenDialogueLog()
         {
+            if (IsHostedDialogue) return;
             if (!dialogueActive || logOpen || boardOpen) return;
             logOpen = true;
             if (inputModes != null) inputModes.TrySetMode(this, GameInputMode.FullScreenPanel);
@@ -340,6 +463,7 @@ namespace DetectiveGame.Dialogue
 
         private void ProcessCurrentTags()
         {
+            currentLineType = DialogueLineType.Dialogue;
             IReadOnlyList<string> tags = story.currentTags;
             for (int i = 0; i < tags.Count; i++)
             {
@@ -347,6 +471,8 @@ namespace DetectiveGame.Dialogue
                 const string speakerPrefix = "speaker:";
                 if (tag.StartsWith(speakerPrefix, StringComparison.OrdinalIgnoreCase))
                     currentSpeakerId = tag.Substring(speakerPrefix.Length).Trim();
+                else if (tag.StartsWith("type:", StringComparison.OrdinalIgnoreCase))
+                    Enum.TryParse(tag.Substring(5).Trim(), true, out currentLineType);
                 else
                     knowledge.ApplyInkTag(tag);
             }
@@ -357,6 +483,7 @@ namespace DetectiveGame.Dialogue
             dialogueActive = false;
             choicesVisible = false;
             story = null;
+            if (IsHostedDialogue) { if (!retainHostedFinalLine) ui.HideDialogue(); FinishHostedDialogue(true); return; }
             ui.HideDialogue();
             knowledge.NotifyDialogueCompleted();
             ui.ShowBoardUpdatedToast();
@@ -365,6 +492,7 @@ namespace DetectiveGame.Dialogue
 
         public void CancelDialogue()
         {
+            if (IsHostedDialogue) return;
             if (!dialogueActive || wheelOpen || boardOpen || logOpen || EvidenceBoardController.AnyOpen) return;
             dialogueActive = false;
             choicesVisible = false;
@@ -394,6 +522,7 @@ namespace DetectiveGame.Dialogue
 
         private void AbortModalState()
         {
+            choiceHost = null; hostedChoices = null; hostedChoiceSelected = null; presentationBlocked = false;
             dialogueActive = false;
             choicesVisible = false;
             wheelOpen = false;
@@ -403,6 +532,9 @@ namespace DetectiveGame.Dialogue
             story = null;
 
             if (ui == null) return;
+            ui.ShowNotebookNavigation(false, notebookEvidence);
+            ResetPauseHold();
+            RestorePauseTime();
             ui.HideChoices();
             ui.HideDialogue();
             ui.HideInvestigationWheel(false, null, true);
@@ -412,6 +544,7 @@ namespace DetectiveGame.Dialogue
 
         private void RestoreGameplay(bool force = false)
         {
+            if (IsHostedDialogue) return;
             if (!force && HasOpenModal) return;
             if (inputModes == null) return;
             if (force) inputModes.ForceExit(this);
@@ -422,17 +555,98 @@ namespace DetectiveGame.Dialogue
 
         private void OnInvestigationMenu(InputAction.CallbackContext context)
         {
+            if (useCaseNotebook) { ToggleCaseNotebook(); return; }
             if (logOpen || EvidenceBoardController.AnyOpen) return;
             ToggleInvestigationWheel();
         }
 
         private void OnCancel(InputAction.CallbackContext context)
         {
+            if (useCaseNotebook)
+            {
+                // Eligibility is captured on key-down: closing a panel must never arm a hold.
+                ResetPauseHold();
+                if (boardOpen) { CloseBoard(); return; }
+                if (pauseEligibleLastFrame && CanStartPauseHold())
+                {
+                    pauseHoldPending = true;
+                    pauseHoldStarted = Time.unscaledTime;
+                    ui.SetPauseHoldProgress(0f, true);
+                    return;
+                }
+            }
+            if (presentationBlocked) return;
+            if (choiceHost != null) { hostedChoiceSelected?.Invoke(-1); return; }
+            if (IsHostedDialogue) return;
             if (EvidenceBoardController.AnyOpen) return;
             if (boardOpen) CloseBoard();
             else if (logOpen) CloseDialogueLog();
             else if (wheelOpen) CloseInvestigationWheel();
             else if (dialogueActive) CancelDialogue();
+        }
+
+        public void ToggleCaseNotebook()
+        {
+            if (!useCaseNotebook || wheelOpen || wheelClosing || logOpen || IsHostedDialogue) return;
+            ResetPauseHold();
+            if (boardOpen) CloseBoard();
+            else if (!EvidenceBoardController.AnyOpen) OpenBoard();
+        }
+
+        public void ShowNotebookPage(bool evidence)
+        {
+            if (!useCaseNotebook || !boardOpen) return;
+            if (evidence)
+            {
+                if (evidenceBoard == null || !evidenceBoard.ShowNotebookPage(this, CloseBoard)) return;
+                ui.HideBoard(false);
+                ui.SetPersistentHudVisible(false);
+            }
+            else
+            {
+                if (evidenceBoard != null) evidenceBoard.HideNotebookPage();
+                ui.ShowBoard();
+            }
+            notebookEvidence = evidence;
+            ui.ShowNotebookNavigation(true, evidence);
+        }
+
+        private bool CanStartPauseHold() => useCaseNotebook && !HasOpenModal &&
+            !EvidenceBoardController.AnyOpen && !presentationBlocked && inputModes != null &&
+            inputModes.IsGameplay && (recallSession == null || !recallSession.IsActive);
+
+        private void UpdatePauseHold()
+        {
+            if (!pauseHoldPending) return;
+            if (!cancelAction.IsPressed() || !CanStartPauseHold()) { ResetPauseHold(); return; }
+            float progress = Mathf.Clamp01((Time.unscaledTime - pauseHoldStarted) / pauseHoldDuration);
+            ui.SetPauseHoldProgress(progress, true);
+            if (progress < 1f) return;
+            ResetPauseHold();
+            OpenInvestigationWheel();
+        }
+
+        private void OnCancelReleased(InputAction.CallbackContext context) => ResetPauseHold();
+        private void OnApplicationFocus(bool focused) { if (!focused) ResetPauseHold(); }
+        private void ResetPauseHold()
+        {
+            pauseHoldPending = false;
+            if (ui != null) ui.SetPauseHoldProgress(0f, false);
+        }
+
+        private void RestorePauseTime()
+        {
+            if (!pauseTimeCaptured) return;
+            Time.timeScale = timeScaleBeforePause;
+            pauseTimeCaptured = false;
+        }
+
+        private void FinishHostedDialogue(bool completed)
+        {
+            var callback = hostedFinished;
+            dialogueHost = null;
+            hostedFinished = null;
+            callback?.Invoke(completed);
         }
     }
 

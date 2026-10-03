@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61e6df2fe295a5b4a9aa01cecc7ff0d5, type: 3}
+  m_Name: TutorialTelephoneDialProfile
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Interaction.TelephoneDialProfile
+  digits:
+  - digit: 0
+    targetAngle: 340
+    angleTolerance: 12
+  - digit: 1
+    targetAngle: 70
+    angleTolerance: 12
+  - digit: 2
+    targetAngle: 100
+    angleTolerance: 12
+  - digit: 3
+    targetAngle: 130
+    angleTolerance: 12
+  - digit: 4
+    targetAngle: 160
+    angleTolerance: 12
+  - digit: 5
+    targetAngle: 190
+    angleTolerance: 12
+  - digit: 6
+    targetAngle: 220
+    angleTolerance: 12
+  - digit: 7
+    targetAngle: 250
+    angleTolerance: 12
+  - digit: 8
+    targetAngle: 280
+    angleTolerance: 12
+  - digit: 9
+    targetAngle: 310
+    angleTolerance: 12

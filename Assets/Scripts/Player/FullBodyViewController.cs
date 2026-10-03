@@ -63,6 +63,20 @@ namespace DetectiveGame.Player
 
         public bool IsFirstPerson => initialized && modeApplied && appliedFirstPerson;
 
+        public CinemachineCamera FirstPersonCamera => firstPersonCamera;
+        public float EyeHeight => eyeHeight;
+        public float ForwardOffset => forwardOffset;
+
+        // Synchronizes the cached look angles as well as the camera transform at a cinematic handoff.
+        public void SnapFirstPersonLook(float targetYaw, float targetPitch = 0f)
+        {
+            yaw = targetYaw;
+            pitch = Mathf.Clamp(targetPitch, -lookUpLimit, lookDownLimit);
+            if (IsFirstPerson) UpdateFirstPersonCamera();
+        }
+
+        public bool InteractionLocked => interactionLocked;
+
         public void SetInteractionLock(bool locked)
         {
             if (interactionLocked == locked) return;

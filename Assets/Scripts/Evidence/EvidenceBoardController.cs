@@ -23,6 +23,29 @@ namespace DetectiveGame.Evidence
         private Object returnOwner;
         private GameInputMode returnMode = GameInputMode.Gameplay;
         private Action closedCallback;
+        private Action notebookClose;
+
+        public bool ShowNotebookPage(Object owner, Action onClose)
+        {
+            if (inputModes == null || !inputModes.IsOwnedBy(owner) || (IsOpen && notebookClose == null)) return false;
+            notebookClose = onClose;
+            if (!IsOpen)
+            {
+                IsOpen = true;
+                ui.SetNotebookLayout(true);
+                ui.Show();
+            }
+            return true;
+        }
+
+        public void HideNotebookPage()
+        {
+            if (notebookClose == null) return;
+            notebookClose = null;
+            IsOpen = false;
+            ui.Hide();
+            ui.SetNotebookLayout(false);
+        }
 
         public static EvidenceBoardController Current { get; private set; }
         public static bool AnyOpen => Current != null && Current.IsOpen;
@@ -93,6 +116,7 @@ namespace DetectiveGame.Evidence
 
         public void Close()
         {
+            if (notebookClose != null) { notebookClose.Invoke(); return; }
             if (!IsOpen) return;
             IsOpen = false;
             ui.Hide();
@@ -108,7 +132,7 @@ namespace DetectiveGame.Evidence
 
         private void OnClose(InputAction.CallbackContext context)
         {
-            if (IsOpen) Close();
+            if (IsOpen && notebookClose == null) Close();
         }
 
         private void OnPlayPause(InputAction.CallbackContext context)

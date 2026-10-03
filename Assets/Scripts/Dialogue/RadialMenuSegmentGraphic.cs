@@ -6,13 +6,14 @@ using UnityEngine.UI;
 namespace DetectiveGame.Dialogue
 {
     [DisallowMultipleComponent]
+    [RequireComponent(typeof(CanvasRenderer))]
     public sealed class RadialMenuSegmentGraphic : MaskableGraphic, ICanvasRaycastFilter
     {
-        private float innerRadius = 100f;
-        private float outerRadius = 300f;
-        private float centerAngle;
-        private float spanAngle = 60f;
-        private int subdivisions = 16;
+        [SerializeField] private float innerRadius = 100f;
+        [SerializeField] private float outerRadius = 300f;
+        [SerializeField] private float centerAngle;
+        [SerializeField] private float spanAngle = 60f;
+        [SerializeField] private int subdivisions = 16;
 
         public void Configure(
             float newInnerRadius,
@@ -98,16 +99,4 @@ namespace DetectiveGame.Dialogue
         }
     }
 
-    [DisallowMultipleComponent]
-    internal sealed class RadialMenuPointerHandler : MonoBehaviour, IPointerClickHandler
-    {
-        private Action clicked;
-
-        public void Configure(Action onClicked) => clicked = onClicked;
-
-        public void OnPointerClick(PointerEventData eventData)
-        {
-            if (eventData.button == PointerEventData.InputButton.Left) clicked?.Invoke();
-        }
-    }
 }

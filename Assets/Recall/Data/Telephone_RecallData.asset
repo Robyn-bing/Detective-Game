@@ -1,0 +1,145 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6165263446a9ae94da498c5225513bc4, type: 3}
+  m_Name: Telephone_RecallData
+  m_EditorClassIdentifier: Assembly-CSharp::DetectiveGame.Recall.RecallObjectData
+  displayName: "\u7535\u8BDD"
+  description: "9.8 \u665A\u95F4\u7684\u7535\u8BDD\u62E8\u53F7\u8BB0\u5FC6\u3002"
+  previewPrefab: {fileID: 7153403460124002572, guid: ee3d3bc8b0242094b8f32bce0431ae68, type: 3}
+  previewCameraEuler: {x: 48, y: 0, z: 0}
+  previewFieldOfView: 48
+  framingPadding: 1.3
+  cameraEntryProgressCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  cameraReturnTransitionSeconds: 0.7
+  backgroundColor: {r: 0.055, g: 0.035, b: 0.022, a: 1}
+  colorFadeEnd: 0.2
+  dissolveOutStart: 0.12
+  dissolveOutEnd: 0.46
+  revealStart: 0.54
+  colorFadeCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  dissolveOutCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  revealCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  dissolveEdgeColor: {r: 0.58, g: 0.9, b: 1.15, a: 1}
+  dissolveEdgeWidth: 0.07
+  dissolveNoiseScale: 5
+  periods:
+  - periodId: telephone_0908_1930_1935
+    label: "\u7535\u8BDD\u62E8\u53F7"
+    dateLabel: 9.8
+    autoPlay: 1
+    startHour: 19
+    startMinute: 30
+    endHour: 19
+    endMinute: 35
+    animationClip: {fileID: 7400000, guid: dbe02f27c887acd4b88ceb9bef7df0b0, type: 2}
+    synchronizedEntrySeconds: 1.25
+    legacyRewindProgressCurve:
+      serializedVersion: 2
+      m_Curve: []
+      m_PreInfinity: 0
+      m_PostInfinity: 0
+      m_RotationOrder: 0
+    playbackSpeed: 1
+    available: 1
+    unlockId: 

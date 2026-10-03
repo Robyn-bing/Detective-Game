@@ -1,5 +1,7 @@
 using DetectiveGame.Evidence;
 using DetectiveGame.Input;
+using DetectiveGame.Player;
+using DetectiveGame.Interaction;
 using StarterAssets;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -52,6 +54,7 @@ namespace DetectiveGame.Recall
         private float transitionStartFieldOfView;
         private Vector3 previewCameraPosition;
         private Quaternion previewCameraRotation;
+        private float previewFieldOfView;
         private RecallDissolveVisual targetDissolveVisual;
         private RecallDissolveVisual previewDissolveVisual;
         private bool entryPreviewActivated;
@@ -173,8 +176,9 @@ namespace DetectiveGame.Recall
 
         public void SetWorldPrompt(RecallableObject recallable)
         {
-            if (ui != null && !IsActive)
-                ui.SetWorldPrompt(recallable);
+            if (IsActive || playerInput == null) return;
+            InteractionPromptUI worldUI = playerInput.GetComponent<InteractionPromptUI>();
+            if (worldUI != null) worldUI.ShowRecall(recallable);
         }
 
         public void BeginRecall(RecallableObject recallable)
@@ -324,6 +328,9 @@ namespace DetectiveGame.Recall
             preview.name = data.PreviewPrefab.name;
             preview.transform.localPosition = Vector3.zero;
             preview.transform.localRotation = Quaternion.identity;
+            // The animated telephone must occupy the same world space as its present-day instance.
+            if (target.GetComponent<TelephoneDialController>() != null)
+                preview.transform.localScale = target.transform.lossyScale;
             SetLayerRecursively(stage, previewLayer);
             foreach (Collider collider in preview.GetComponentsInChildren<Collider>(true)) collider.enabled = false;
             foreach (Rigidbody body in preview.GetComponentsInChildren<Rigidbody>(true))
@@ -358,6 +365,16 @@ namespace DetectiveGame.Recall
 
         private void FramePreviewCamera()
         {
+            // The telephone's authored E view is the single source of truth for R too.
+            var telephone = target.GetComponent<TelephoneDialController>();
+            previewFieldOfView = data.PreviewFieldOfView;
+            if (telephone != null && telephone.DialViewAnchor != null)
+            {
+                previewCameraPosition = telephone.DialViewAnchor.position;
+                previewCameraRotation = telephone.DialViewAnchor.rotation;
+                previewFieldOfView = telephone.DialFieldOfView;
+                return;
+            }
             float endTime = clipTime;
             Bounds bounds = default;
             const int framingSamples = 24;
@@ -441,21 +458,20 @@ namespace DetectiveGame.Recall
             float t = Mathf.Clamp01(transitionElapsed / duration);
             float cameraProgress = EvaluateNormalizedProgress(
                 data.CameraEntryProgressCurve, t, t * t * (3f - 2f * t));
-            mainCamera.transform.SetPositionAndRotation(
-                Vector3.Lerp(transitionStartPosition, previewCameraPosition, cameraProgress),
-                Quaternion.Slerp(transitionStartRotation, previewCameraRotation, cameraProgress));
-            mainCamera.fieldOfView = Mathf.Lerp(transitionStartFieldOfView, data.PreviewFieldOfView, cameraProgress);
+            FixedViewCameraTransition.Apply(mainCamera, transitionStartPosition, transitionStartRotation,
+                transitionStartFieldOfView, previewCameraPosition, previewCameraRotation,
+                previewFieldOfView, cameraProgress);
             UpdateEntryReconstruction(t);
             if (t >= 1f)
             {
                 mainCamera.transform.SetPositionAndRotation(previewCameraPosition, previewCameraRotation);
-                mainCamera.fieldOfView = data.PreviewFieldOfView;
+                mainCamera.fieldOfView = previewFieldOfView;
                 clipTime = 0f;
                 SampleCurrentTime();
                 ActivateEntryPreview();
                 targetDissolveVisual?.RestoreAppearance(false);
                 previewDissolveVisual?.RestoreAppearance(true);
-                State = SessionState.Paused;
+                State = period.AutoPlay ? SessionState.Playing : SessionState.Paused;
                 evidenceReviewEligible = true;
                 ui.ShowPlayback(data, period);
                 ui.UpdatePlayback(State, period, 0f);
@@ -529,10 +545,9 @@ namespace DetectiveGame.Recall
             transitionElapsed += Time.unscaledDeltaTime;
             float t = Mathf.Clamp01(transitionElapsed / duration);
             float smoothT = t * t * (3f - 2f * t);
-            mainCamera.transform.SetPositionAndRotation(
-                Vector3.Lerp(transitionStartPosition, previousCameraPosition, smoothT),
-                Quaternion.Slerp(transitionStartRotation, previousCameraRotation, smoothT));
-            mainCamera.fieldOfView = Mathf.Lerp(transitionStartFieldOfView, previousFieldOfView, smoothT);
+            FixedViewCameraTransition.Apply(mainCamera, transitionStartPosition, transitionStartRotation,
+                transitionStartFieldOfView, previousCameraPosition, previousCameraRotation,
+                previousFieldOfView, smoothT);
             UpdateExitReconstruction(t);
             if (t >= 1f) CompleteExitRecall();
         }
@@ -683,3 +698,4 @@ namespace DetectiveGame.Recall
         }
     }
 }
+
